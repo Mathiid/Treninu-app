@@ -1,17 +1,21 @@
+// Generated for the single-file index.html by tools/build-single.js. Save it next to that file.
 /* Service worker: makes the app work offline and delivers the "rest is over" notification when the page
    itself has been frozen by the browser (screen off, app in the background).
-   Bump CACHE whenever a shipped file changes. */
+   Bump CACHE whenever a shipped file changes.
+   The two BUILD lines are rewritten by tools/build-single.js for the single-file index.html, which has
+   nothing to cache but the page itself; there a missing file must not stop the worker installing. */
 'use strict';
-var CACHE = 'ha-v1';
-var SHELL = [
-  './', 'index.html', 'manifest.webmanifest', 'css/styles.css', 'css/fonts.css', 'fonts/BigShoulders-Bold.woff',
-  'js/spec.js', 'js/engine.js', 'js/program.js', 'js/session.js', 'js/store.js', 'js/actions.js',
-  'js/timer.js', 'js/ai.js', 'js/thumbs.js', 'js/views.js', 'js/app.js',
-  'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'
-];
+var CACHE = 'ha-v2';
+var SHELL = ['./'];   // BUILD:SHELL
+var STRICT = false;   // BUILD:STRICT
+
+function precache(c) {
+  if (STRICT) return c.addAll(SHELL);
+  return Promise.all(SHELL.map(function (u) { return c.add(u).catch(function () { /* optional */ }); }));
+}
 
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(caches.open(CACHE).then(precache).then(function () { return self.skipWaiting(); }));
 });
 self.addEventListener('activate', function (e) {
   e.waitUntil(
@@ -30,7 +34,11 @@ self.addEventListener('fetch', function (e) {
         var net = fetch(req).then(function (res) {
           if (res && res.ok) cache.put(req, res.clone());
           return res;
-        }).catch(function () { return hit || (req.mode === 'navigate' ? cache.match('index.html') : Response.error()); });
+        }).catch(function () {
+          if (hit) return hit;
+          if (req.mode !== 'navigate') return Response.error();
+          return cache.match('index.html').then(function (p) { return p || cache.match('./'); }).then(function (p) { return p || Response.error(); });
+        });
         return hit || net;
       });
     })
@@ -66,7 +74,7 @@ self.addEventListener('message', function (e) {
         if (visible) return;
         return self.registration.showNotification('Rest is over', {
           body: d.body || 'Time for your next set.', tag: 'ha-rest', renotify: true,
-          vibrate: [220, 90, 220, 90, 500], icon: 'icons/icon-192.png', badge: 'icons/icon-192.png'
+          vibrate: [220, 90, 220, 90, 500], icon: d.icon || 'icons/icon-192.png', badge: d.icon || 'icons/icon-192.png'
         });
       }).catch(function () { /* no notification permission */ }).then(resolve);
     }, wait);
