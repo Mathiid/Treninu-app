@@ -1,10 +1,34 @@
 # Hybrid Athlete Tracker & Ducky Coach
 
-A phone-first training log for your 16-week hybrid program (lifting, Zone 2 running, sprints, BJJ), built as an installable web app (PWA). It logs sets Hevy-style, runs the rest timer, sets your weights from your 1RMs and keeps them up to date from what you actually lift, exports the whole schedule to Google Calendar, and has an on-demand AI coach called Ducky.
+A phone-first training log for your 16-week hybrid program (lifting, Zone 2 running, sprints, BJJ), built as an installable web app (PWA). It logs sets Hevy-style, runs the rest timer, sets your weights from your 1RMs and keeps them up to date from what you actually lift, coaches your Zone 2 runs live from a heart-rate sensor, keeps your schedule in two-way sync with Google Calendar, and has an on-demand AI coach called Ducky.
 
-There is no build step, no backend and no account. Everything runs in the browser and is stored on your device.
+There is no build step for the app itself (the single-file version below is an optional one), no backend and no account. Everything runs in the browser and is stored on your device.
 
-## Run it
+## The single-file version
+
+`dist/index.html` is the whole app in one file: styles, the font, icons, all 16 JavaScript modules, the 16-week program data and a web app manifest (a `data:` URL in the page head, with the icons inside it). No folders, nothing else to upload.
+
+```bash
+node tools/build-single.js      # rebuilds dist/index.html (and dist/sw.js) from the source files
+```
+
+**The service worker is the one thing that cannot be inside the file.** Browsers only register a service worker from a real http(s) file: Chromium rejects one from a `blob:` or `data:` URL and from the page itself (tested). So the page carries the worker's source as inert text and does this:
+
+- If a `sw.js` is served next to the page, the page registers it. You get offline start after the first visit and the background rest-timer notification fallback. `dist/sw.js` is that file, identical to the embedded text.
+- If it is not there, everything else works. Settings, *Install and offline* shows *Offline mode is off* and a *Download sw.js* button that saves the embedded copy, ready to upload next to the page.
+- Opened from disk (`file://`), service workers are unavailable. Logging, the timer, backups and the calendar download still work and data survives reloads.
+
+**Installing.**
+
+- Chromium's installability check passes for the single file with no service worker (the manifest is parsed with its three icons and reports no errors). Chrome has not needed a service worker for *Install app* in its menu since version 108 on Android and 112 on desktop. Chrome's own install *prompt* (the banner or address-bar icon) still needs a service worker with a fetch handler, so add `sw.js` if you want that. When the browser offers the prompt, Settings shows an *Install app* button.
+- iPhone has no install criteria: Share, then Add to Home Screen. Settings shows these steps on an iPhone.
+- I could not test a real phone. On Android, Chrome may install a plain shortcut instead of a full app when the icons come from a `data:` manifest; if that happens, serve `manifest.webmanifest` and the `icons/` folder instead (the folder version).
+
+Other details: the Content-Security-Policy stays strict. It lists the SHA-256 of each embedded script, `manifest-src data:` for the manifest and `worker-src 'self'` for `sw.js`. The one outside script allowed is Google sign-in (`https://accounts.google.com/gsi/client`), which is only loaded after you enter a client ID in Settings. For exercise photos in this version, give `js/thumbs.js` entries as `https://` addresses or `data:` URIs, then rebuild.
+
+The rest of this README describes the folder version and applies to both unless noted.
+
+## Run it (folder version)
 
 You need to serve the folder over **HTTPS** (or `localhost`) because service workers, notifications and the screen wake lock only work on secure origins.
 
@@ -22,8 +46,8 @@ To use it on your phone, put the folder on any static host. Netlify Drop, Cloudf
 
 ## First five minutes
 
-1. **Lifts** tab: tap *Set 1RM* for Bench Press, Zercher Squat, Power Clean and Romanian Deadlift. Every working weight in the plan fills in from these. No 1RM tested? Use the calculator on the same screen (for example 100 kg × 5).
-2. **Settings**: add your age (and resting heart rate if you know it) to get your Zone 2 range on run days. Check the **Program start** date; it defaults to the next Monday. Choose kg or lb.
+1. **Settings**: enter your **bodyweight** (pull-up weights need it), your age (and resting heart rate if you know it) for your Zone 2 range on run days, and check the **Program start** date; it defaults to the next Monday. Choose kg or lb.
+2. **Lifts** tab: tap *Set 1RM* for Bench Press, Zercher Squat, Power Clean, Romanian Deadlift, Bulgarian Split Squat and Pull-up. Every working weight in the plan fills in from these. No 1RM tested? Use the calculator on the same screen (for example 100 kg × 5).
 3. **Today** tab: tap *Start workout*.
 
 ## How it behaves
@@ -34,14 +58,18 @@ To use it on your phone, put the folder on any static host. Netlify Drop, Cloudf
 
 **Rest timer.** Starts when you tick a set (you can turn that off). It shows a large countdown with −15 / +15 / Skip. When it ends you get a short chime and a vibration. The chime is a brief Web Audio beep, never a long audio stream, so YouTube Music or Spotify keeps playing underneath. On Safari the audio session is set to *ambient* so it mixes rather than interrupts.
 
-**Progression.** Working weight = (current 1RM) × (target intensity), rounded to your plate step (2.5 kg or 5 lb by default; change it in Settings). Details:
+**Progression.** Working weight = (current 1RM) × (target intensity), rounded to your plate step (2.5 kg or 5 lb by default; change it in Settings). Six lifts work this way. Details:
+
+- **Bulgarian split squat:** the 1RM is the total weight you hold (both dumbbells together, or the bar) for one rep on one leg; reps are counted per leg. Day 1 shows the weight and what percentage of your estimated 1RM it is.
+- **Pull-up:** weighted. The 1RM and every percentage are about the *total* load, bodyweight plus added weight, and the weight field in the logger is the **added** weight (empty means bodyweight only). Example: bodyweight 80 kg, 1RM 120 kg total, 10 reps at 71.4% means 85.7 kg total, so add 5 kg. If the plan would be below your bodyweight it says so and leaves the field empty. Enter the 1RM as the total, or type `+40` for 40 kg added to bodyweight. The bodyweight at the time is saved with each logged session, so later bodyweight changes never rewrite old estimates.
+- **Live percentage:** under each of these exercises the logger shows the weight on the set you are doing as a share of your estimated 1RM (for example *27.5 kg = 68.8% of estimated 1RM 40 kg*). It follows what you type, so you see the true percentage after plate rounding next to the planned one.
 
 - The intensity for a prescribed rep target comes from the Epley formula, `1RM = weight × (1 + reps / 30)`, with your planned reps in reserve (RIR) added so the maths is closed-loop. Do exactly what was prescribed and your 1RM estimate stays put instead of drifting down week after week. RIR by block: Block 1: 2, Block 2: 1, Block 3: 1, Block 4: 2; power cleans stop 2 reps further from failure.
-- After every logged session, the 1RM for those four lifts is re-estimated from your best set (reps ≤ 12) and the weights for the remaining weeks update. Use the best estimate of the last 28 days, so one bad day does not crash your numbers.
+- After every logged session, the 1RM for those six lifts is re-estimated from your best set (reps ≤ 12) and the weights for the remaining weeks update. Use the best estimate of the last 28 days, so one bad day does not crash your numbers.
 - A 1RM you type in wins until a workout is logged *after* it (compared by time), then the logged estimate takes over. Entering a fresh tested 1RM later overrides again.
 - A single rep counts as the weight itself.
 - Deload weeks (weeks 4, 8, 12, 16) use 55% of 1RM (the middle of your spec's 50–60%) with reduced volume, and never lower your 1RM estimate.
-- Weighted accessories without a 1RM (Bulgarian split squat, pull-ups, Pallof press) repeat last time's weight and add one plate step once every set hit the top of the rep range.
+- Weighted accessories without a 1RM (Pallof press) repeat last time's weight and add one plate step once every set hit the top of the rep range. Pull-ups do the same until a bodyweight is set.
 
 **Zone 2 heart rate.** Shown on every AM run day. With a resting heart rate it uses Karvonen (heart-rate reserve), otherwise a percentage of max heart rate. Defaults to 60–70%, max heart rate = 220 − age (or Tanaka, or your own measured number). All adjustable in Settings.
 
@@ -53,6 +81,38 @@ To use it on your phone, put the folder on any static host. Netlify Drop, Cloudf
 - *How do I perform X?* returns 4–6 cue bullets and a YouTube search link such as `https://www.youtube.com/results?search_query=how+to+do+zercher+squat`.
 - "Today's workout" always means the workout you have open, or the real day's workout, not whichever day you are browsing.
 - Model: defaults to `gemini-2.5-flash`; switch in Settings. If a model name is retired, the app falls back automatically.
+
+## Zone 2 running: heart rate, pace and live coaching
+
+**Target heart rate** is Karvonen: `((max HR − resting HR) × intensity) + resting HR`, by default 60 to 70% of heart-rate reserve. Set age (max HR is 220 − age unless you enter your own) and resting HR in Settings. Without a resting HR it falls back to a plain percentage of max HR and says so.
+
+**Target pace** (min/km or min/mile, Settings, *Running pace*) comes from your own runs. Log a run (*Log a run* on the run card, or import one) with its distance, time and average heart rate. Pace is scaled with heart-rate reserve, using the median of up to 5 recent steady runs (up to 56 days old, at least 1.5 km and 15 minutes, between 40 and 92% of reserve). With no usable run, a recent race result (distance and time, same section) gives the pace through the Daniels–Gilbert VDOT model. It is a guide: heat, hills and fatigue move it. If resting HR is missing, 60 is assumed and the pace line says so.
+
+**Live heart rate** (*Live heart rate* on the run card) reads a Bluetooth sensor through Web Bluetooth (Heart Rate Service). It shows the bpm large and coloured: **blue** below Zone 2, **green** inside it, **red** above it. The words ("Below Zone 2: pick it up", "In Zone 2", "Above Zone 2: ease off") say the same thing, so colour is never the only signal. With a run started you also get a beep and a buzz when you stay out of the zone: after 10 seconds, then every 30 seconds, plus a soft cue when you are back in. The first 3 minutes do not nag about being too low. Cues can be switched off in Settings. *Stop and save run* opens the run sheet with time and average heart rate filled in; add the distance and it feeds your pace.
+
+- **Browsers.** Web Bluetooth exists in Chrome and Edge on Android, Windows, macOS and ChromeOS, on an https address (or localhost). Safari and Firefox do not have it. On an iPhone the free Bluefy browser does. The screen says so when it is missing.
+- **Sensors.** Chest straps and optical armbands that advertise the standard heart-rate service work. A **Garmin watch** works if it is set to broadcast heart rate over Bluetooth (on many models: hold MENU on the heart-rate widget, then *Heart Rate Options*, then *Broadcast Heart Rate*; the menu differs by model). Older Garmins broadcast over ANT+ only, which no browser can read. If the watch is not in the list, use *Show all Bluetooth devices*.
+- **Keep the screen on.** The app asks for a wake lock during a run, but a phone that locks or a browser that is sent to the background can stop Bluetooth updates. The sensor reconnects up to six times on its own.
+
+**Garmin Connect without an API.** Garmin's Connect API is for approved companies and needs a server, so a single-file app cannot use it. Instead, export an activity from Garmin Connect on the web (open the activity, gear icon, *Export to TCX* or *Export to GPX*) and import it in *Log a run*. Time (pauses over 30 s are not counted), distance and average heart rate are read from the file, and the time you spent in Zone 2 is shown. FIT files are not supported.
+
+## Google Calendar two-way sync
+
+Settings, *Google Calendar*. The app signs in with Google (OAuth 2.0, Google Identity Services), makes a calendar called **Hybrid Athlete Schedule**, and keeps it in step with the app through the Calendar API v3.
+
+- **App to calendar.** Change a session's time (*Change* next to it on the Today screen), a default time or the start date in Settings, or apply a Ducky change, and the affected events are updated a moment later. Each session has a fixed event id, so an update never makes a duplicate. Ducky's changes are added to the event description.
+- **Calendar to app.** On launch, when you come back to the app, and on *Sync now*, changes since the last sync are fetched (an incremental sync). A session you dragged to a new time in Google Calendar becomes a moved session in the app's schedule. If both sides changed the same session, the later change wins. A session you delete in Google Calendar is left alone until you change it here again.
+- **Scope.** Only `calendar.app.created`: the app can see and change calendars it created itself, nothing else of yours. It cannot read your other calendars.
+- **Sign-in lasts about an hour.** A static page has no server to hold a refresh token, so Google's token expires. Changes you make meanwhile are counted ("3 changes are not in Google Calendar yet"); one tap on *Sync now* signs in again and sends them. The token is stored under its own key and never goes into a backup.
+
+**Set-up (about 5 minutes, free; the same steps are in the app).** You need your own client ID because the app has no server and no owner account to hold one:
+
+1. Open console.cloud.google.com, create a project, and enable the **Google Calendar API** (APIs & Services, Library).
+2. Set up the OAuth consent screen (External) and add your own Google account under **Test users**.
+3. Credentials, *Create credentials*, **OAuth client ID**, type *Web application*. Under **Authorized JavaScript origins** add the address of the app without the page name, for example `https://yourname.github.io`. Leave redirect URIs empty.
+4. Paste the client ID into Settings and press *Connect Google Calendar*. Google warns the app is not verified (it is yours): *Advanced*, then *Continue*.
+
+While the app is in *Testing* mode, only the Google accounts listed as Test users can sign in. The calendar and its events stay in your Google account if you press *Disconnect*. The **.ics download** still works and now includes any times you moved.
 
 ## What to know about the rest timer on a phone
 
@@ -69,7 +129,8 @@ A truly guaranteed alarm with the screen locked would need a native app or a pus
 - **Blocks 2 and 3 are generated from your rules, not copied.** Your spec gives explicit exercises only for Block 1; for Blocks 2 and 3 it gives rules. The app builds those weeks from Block 1's exercises plus your rules: reps dropped to 4–6 at 80–88% (Block 2) and 1–3 at 88–92+% (Block 3), Nordics 3×4–6 then 2×3–4, the contrast complex on Days 1 and 5 (iso vs pins, 20 s rest, jump, 2 min rest, 3 rounds), Depth Jumps / bounds / Flying 20s in Block 3, and the sprint distances from the rules. Those days are tagged *Built from your Block N rules* in the app so it is never silent about it.
 - **Weeks 13–16 are an assumption.** Your spec ends at week 12 with "reset cycle at higher baselines", so weeks 13–16 repeat Block 1 with weights recalibrated from your logs. They are tagged *Assumed block, not in your spec*.
 - **Epley with a rep-in-reserve term** instead of the plain formula, for the closed-loop reason above. The plain formula is used in the 1RM calculator.
-- **Calendar is a file import, not a live feed.** A static app cannot host a subscribable `webcal://` URL, and a Google OAuth sync would need you to create a Google Cloud project. The .ics route needs neither and is repeatable.
+- **Google Calendar sync needs your own client ID** (see above), because a static app has no server to own one. The .ics file route needs nothing and is still there. A subscribable `webcal://` feed is impossible without a server.
+- **No Garmin Connect API.** It is for approved companies and needs a server. Live heart rate comes from Bluetooth broadcast, and finished runs come in as TCX or GPX files.
 - **Exercise thumbnails are category icons** (strength, plyo, core, sprint, …). I did not ship exercise photos because they are licensed. To use your own, see `js/thumbs.js`.
 - **Sprints and recovery days** are logged as checklists and timed results from the spec's own wording.
 
@@ -77,7 +138,7 @@ A truly guaranteed alarm with the screen locked would need a native app or a pus
 
 Everything is in the browser's `localStorage` on this device. The app asks the browser to keep it persistent. Still: **export a backup now and then** (Settings, *Export backup*), especially before switching phones or clearing browser data. Import restores logs, 1RMs and settings. *Erase all data* wipes the device including the API key.
 
-A strict Content-Security-Policy limits the app to its own files and `generativelanguage.googleapis.com`, so a stray script could not send your key anywhere else.
+A strict Content-Security-Policy limits the app to its own files, `generativelanguage.googleapis.com` (Ducky), `www.googleapis.com` (Calendar) and Google sign-in, so a stray script could not send your key anywhere else.
 
 ## Project layout
 
@@ -90,14 +151,21 @@ js/spec.js            your 16-week JSON, embedded verbatim
 js/engine.js          pure maths: 1RM, units, rest parsing, Zone 2, history, .ics
 js/program.js         spec -> concrete workout for each of the 112 days
 js/session.js         a live workout: prefill, supersets, rest plan, Ducky changes
-js/store.js           state + localStorage (API key stored separately)
+js/store.js           state + localStorage (API key and Google token stored separately)
+js/zone2.js           Karvonen, pace model, Bluetooth packets, TCX/GPX files, zone watcher (pure)
+js/sched.js           session times and moves, Google event ids and bodies, who-wins rule (pure)
 js/actions.js         every state change the UI can make (no DOM)
-js/timer.js           rest timer, chime, vibration, notifications, wake lock
+js/timer.js           rest timer, chime, vibration, notifications, wake lock, zone cues
+js/hr.js              Web Bluetooth heart-rate sensor and the run in progress
+js/gcal.js            Google sign-in and Calendar API v3 sync (talks only through what it is handed)
 js/ai.js              Ducky: prompt, Gemini call, markdown, change parsing
 js/thumbs.js          optional exercise photos
 js/views.js           every screen as a pure function (state -> HTML)
 js/app.js             DOM glue: events, overlay, sheets, files
-tests/                logic, views and end-to-end tests
+tools/build-single.js builds dist/index.html (everything above in one file) and dist/sw.js
+dist/index.html       the single-file build (generated: edit the source, then rebuild)
+dist/sw.js            the optional service worker for it (the same text is embedded in index.html)
+tests/                logic, views, single-file and end-to-end tests
 ```
 
 ## Tests
@@ -105,15 +173,20 @@ tests/                logic, views and end-to-end tests
 ```bash
 node tests/logic.test.js     # maths, program for all 112 days, sessions, calendar  (no dependencies)
 node tests/views.test.js     # renders every screen for every day; checks HTML, CSS classes, wiring
+node tests/single.test.js    # the single-file build: self-contained, CSP hashes, manifest, embedded sw.js, modules copied verbatim
+node tests/zone2.test.js     # Karvonen, pace, Bluetooth packets, TCX/GPX, zone alerts
+node tests/sync.test.js      # schedule layer and Google Calendar sync against a fake Calendar API
 node tests/e2e.test.js       # drives the real UI in Chromium (needs: npm i playwright)
+SINGLE=1 node tests/e2e.test.js        # the same tests against dist/ (index.html + sw.js), plus opening it from file://
+SINGLE=alone node tests/e2e.test.js    # index.html served without sw.js, like a host that only got the one file
 SHOTS=./shots node tests/e2e.test.js   # also saves screenshots
 ```
 
-The end-to-end suite uses a fake clock, so it runs the rest timer, superset flow, reload recovery, Ducky (with a mocked Gemini), calendar download, backup/restore, unit switching, offline start and the CSP in about a minute.
+The end-to-end suite fakes Bluetooth (a heart-rate strap), Google sign-in and the Calendar API, so the running and sync features are tested through the real UI. It uses a fake clock, so it runs the rest timer, superset flow, reload recovery, Ducky (with a mocked Gemini), calendar download, backup/restore, unit switching, the weighted split squat and pull-ups, install/offline state (including Chromium's installability check), offline start and the CSP in about a minute.
 
 ## Updating
 
-When you change any shipped file, bump `CACHE` in `sw.js` (for example `ha-v2`) so installed copies pick the change up on their next launch.
+When you change any shipped file, bump `CACHE` in `sw.js` (for example `ha-v5`; it is `ha-v4` now) so installed copies pick the change up on their next launch. Then run `node tools/build-single.js` to refresh `dist/index.html`; `tests/single.test.js` fails if it is out of date.
 
 ## Licences
 
