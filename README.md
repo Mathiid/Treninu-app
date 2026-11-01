@@ -2,19 +2,34 @@
 
 A phone-first training log for your 16-week hybrid program (lifting, Zone 2 running, sprints, BJJ), built as an installable web app (PWA). It logs sets Hevy-style, runs the rest timer, sets your weights from your 1RMs and keeps them up to date from what you actually lift, coaches your Zone 2 runs live from a heart-rate sensor, keeps your schedule in two-way sync with Google Calendar, and has an on-demand AI coach called Ducky.
 
-There is no build step for the app itself (the single-file version below is an optional one), no backend and no account. Everything runs in the browser and is stored on your device.
+There is no build step for the app itself (the single-file page below is an optional one), no backend and no account. Everything runs in the browser and is stored on your device.
 
-## The single-file version
+## The flat layout (read this first)
 
-`dist/index.html` is the whole app in one file: styles, the font, icons, all 16 JavaScript modules, the 16-week program data and a web app manifest (a `data:` URL in the page head, with the icons inside it). No folders, nothing else to upload.
+**Every file sits side by side in one folder. There are no subfolders.** Upload all of them together to the root of your GitHub repository (or any static host) and the links between them already match: `index.html` loads `styles.css`, `fonts.css`, `guard.js`, `spec.js`, `engine.js` and the other scripts by plain file name, the manifest points at `icon-192.png` and its siblings, and the service worker caches the same names.
+
+- **`index.html` is the app.** Open that one (on GitHub Pages: `https://<you>.github.io/<repo>/`). It needs the other files next to it.
+- **`index-single.html` is an optional alternative:** the whole app in one file (see below). You do not need it if you upload everything. If you want to use it instead, rename it to `index.html` (and `sw-single.js` to `sw.js`).
+- `program.json` is the 16-week plan as plain data. The app itself reads the same plan from `spec.js`; the build and the tests check that the two are identical.
+- `*.test.js`, `build-single.js`, `gcal-off.js` and `fake-gcal.js` are for developers. The app does not load them, so uploading them is harmless.
+- The file list is in *Project layout* at the end.
+
+
+## The single-file page (`index-single.html`)
+
+**Two editions.** `node build-single.js` builds the **safe edition** (`index-single.html`). It has no Google sign-in and no sync: nothing is loaded from anywhere except the file itself, and the only site it ever talks to is Google Gemini, when you ask Ducky, with your own key. Calendar export is the `.ics` file plus a one-tap *Add to Google Calendar* link on each session. Its Content-Security-Policy does not pin scripts by hash, so a file that was re-saved or changed by a host still starts. `node build-single.js --full` builds the **full edition** (`index-single-full.html`) with Google sign-in and two-way Calendar sync (section below), and pins every script by hash. Everything after this heading applies to both unless noted.
+
+**If something goes wrong anyway**, the app does not go blank: a screen that cannot be drawn shows a message with a *Reload* button, a failing tap or stray error shows a short notice and leaves your data alone, and if the app cannot start at all, an explanation (with the technical detail) replaces the black page.
+
+`index-single.html` is the whole app in one file: styles, the font, icons, all 16 JavaScript modules (the Google module is a do-nothing stand-in in the safe edition), the 16-week program data and a web app manifest (a `data:` URL in the page head, with the icons inside it). Nothing else is needed to run it.
 
 ```bash
-node tools/build-single.js      # rebuilds dist/index.html (and dist/sw.js) from the source files
+node build-single.js      # rebuilds index-single.html (and sw-single.js) from the loose source files
 ```
 
 **The service worker is the one thing that cannot be inside the file.** Browsers only register a service worker from a real http(s) file: Chromium rejects one from a `blob:` or `data:` URL and from the page itself (tested). So the page carries the worker's source as inert text and does this:
 
-- If a `sw.js` is served next to the page, the page registers it. You get offline start after the first visit and the background rest-timer notification fallback. `dist/sw.js` is that file, identical to the embedded text.
+- If a `sw.js` is served next to the page, the page registers it. You get offline start after the first visit and the background rest-timer notification fallback. `sw-single.js` is that file, identical to the embedded text. **Name matters:** the page asks for `sw.js`, and in this flat folder `sw.js` is the worker of the multi-file app, so when you use the single page, rename `index-single.html` to `index.html` and `sw-single.js` to `sw.js` (replacing the loose-file ones).
 - If it is not there, everything else works. Settings, *Install and offline* shows *Offline mode is off* and a *Download sw.js* button that saves the embedded copy, ready to upload next to the page.
 - Opened from disk (`file://`), service workers are unavailable. Logging, the timer, backups and the calendar download still work and data survives reloads.
 
@@ -22,27 +37,28 @@ node tools/build-single.js      # rebuilds dist/index.html (and dist/sw.js) from
 
 - Chromium's installability check passes for the single file with no service worker (the manifest is parsed with its three icons and reports no errors). Chrome has not needed a service worker for *Install app* in its menu since version 108 on Android and 112 on desktop. Chrome's own install *prompt* (the banner or address-bar icon) still needs a service worker with a fetch handler, so add `sw.js` if you want that. When the browser offers the prompt, Settings shows an *Install app* button.
 - iPhone has no install criteria: Share, then Add to Home Screen. Settings shows these steps on an iPhone.
-- I could not test a real phone. On Android, Chrome may install a plain shortcut instead of a full app when the icons come from a `data:` manifest; if that happens, serve `manifest.webmanifest` and the `icons/` folder instead (the folder version).
+- I could not test a real phone. On Android, Chrome may install a plain shortcut instead of a full app when the icons come from a `data:` manifest; if that happens, use the loose-file app instead (`index.html` with `manifest.webmanifest` and the `icon-*.png` files beside it).
 
-Other details: the Content-Security-Policy stays strict. It lists the SHA-256 of each embedded script, `manifest-src data:` for the manifest and `worker-src 'self'` for `sw.js`. The one outside script allowed is Google sign-in (`https://accounts.google.com/gsi/client`), which is only loaded after you enter a client ID in Settings. For exercise photos in this version, give `js/thumbs.js` entries as `https://` addresses or `data:` URIs, then rebuild.
+Other details: the safe edition's Content-Security-Policy allows the page's own inline scripts, `connect-src` only for itself and Gemini, `manifest-src data:` for the manifest and `worker-src 'self'` for `sw.js`. Without hash pinning it is weaker against an injected script than the full edition's policy; the app builds every screen from escaped text (tested), and your Gemini key can still only be sent to Gemini. The full edition lists the SHA-256 of each embedded script instead, and allows Google sign-in (`https://accounts.google.com/gsi/client`) only after you enter a client ID in Settings. For exercise photos in this version, give `thumbs.js` entries as `https://` addresses or `data:` URIs, then rebuild.
 
-The rest of this README describes the folder version and applies to both unless noted.
+The rest of this README describes the loose-file app (`index.html`) and applies to both unless noted.
 
-## Run it (folder version)
+## Run it (loose files)
 
-You need to serve the folder over **HTTPS** (or `localhost`) because service workers, notifications and the screen wake lock only work on secure origins.
+You need to serve the files over **HTTPS** (or `localhost`) because service workers, notifications and the screen wake lock only work on secure origins.
 
 ```bash
-cd hybrid-athlete
+cd hybrid-athlete-flat
 python3 -m http.server 8080        # then open http://localhost:8080
 ```
 
-To use it on your phone, put the folder on any static host. Netlify Drop, Cloudflare Pages, GitHub Pages and Vercel all work and are free. Upload the folder as it is.
+To use it on your phone, put the files on any static host. GitHub Pages, Netlify Drop, Cloudflare Pages and Vercel all work and are free. On GitHub: create a repository, upload every file from this folder into its root (drag them all in at once), then Settings, Pages, deploy from the `main` branch, `/ (root)`.
 
 **Install it** (this matters: installed apps get more reliable storage and notifications):
 
 - **iPhone:** open the site in Safari, tap Share, then *Add to Home Screen*. Notifications for installed web apps need iOS 16.4 or later.
 - **Android:** open the site in Chrome, then menu, *Install app*.
+
 
 ## First five minutes
 
@@ -88,6 +104,8 @@ To use it on your phone, put the folder on any static host. Netlify Drop, Cloudf
 
 **Target pace** (min/km or min/mile, Settings, *Running pace*) comes from your own runs. Log a run (*Log a run* on the run card, or import one) with its distance, time and average heart rate. Pace is scaled with heart-rate reserve, using the median of up to 5 recent steady runs (up to 56 days old, at least 1.5 km and 15 minutes, between 40 and 92% of reserve). With no usable run, a recent race result (distance and time, same section) gives the pace through the Daniels–Gilbert VDOT model. It is a guide: heat, hills and fatigue move it. If resting HR is missing, 60 is assumed and the pace line says so.
 
+**No sensor?** On the same screen you can **type your heart rate** (from a watch, or a 15-second pulse count times 4) and get the same blue / green / red and words. It works in every browser, including iPhone Safari, and a typed number counts for 3 minutes. Bluetooth errors (no device chosen, no heart-rate data, a dropped signal) are explained on screen and never stop the app.
+
 **Live heart rate** (*Live heart rate* on the run card) reads a Bluetooth sensor through Web Bluetooth (Heart Rate Service). It shows the bpm large and coloured: **blue** below Zone 2, **green** inside it, **red** above it. The words ("Below Zone 2: pick it up", "In Zone 2", "Above Zone 2: ease off") say the same thing, so colour is never the only signal. With a run started you also get a beep and a buzz when you stay out of the zone: after 10 seconds, then every 30 seconds, plus a soft cue when you are back in. The first 3 minutes do not nag about being too low. Cues can be switched off in Settings. *Stop and save run* opens the run sheet with time and average heart rate filled in; add the distance and it feeds your pace.
 
 - **Browsers.** Web Bluetooth exists in Chrome and Edge on Android, Windows, macOS and ChromeOS, on an https address (or localhost). Safari and Firefox do not have it. On an iPhone the free Bluefy browser does. The screen says so when it is missing.
@@ -96,7 +114,11 @@ To use it on your phone, put the folder on any static host. Netlify Drop, Cloudf
 
 **Garmin Connect without an API.** Garmin's Connect API is for approved companies and needs a server, so a single-file app cannot use it. Instead, export an activity from Garmin Connect on the web (open the activity, gear icon, *Export to TCX* or *Export to GPX*) and import it in *Log a run*. Time (pauses over 30 s are not counted), distance and average heart rate are read from the file, and the time you spent in Zone 2 is shown. FIT files are not supported.
 
-## Google Calendar two-way sync
+## Google Calendar
+
+**Safe edition:** *Settings, Calendar, Download calendar file (.ics)* exports all 16 weeks (times you moved included; importing it again updates the same events instead of duplicating them). On the Today screen each timed session also has an *Add to Google Calendar* link that opens Google Calendar's own "new event" page with the title, time and workout filled in; nothing is signed in or stored. The rest of this section is the **full edition** only.
+
+### Two-way sync (full edition)
 
 Settings, *Google Calendar*. The app signs in with Google (OAuth 2.0, Google Identity Services), makes a calendar called **Hybrid Athlete Schedule**, and keeps it in step with the app through the Calendar API v3.
 
@@ -131,7 +153,8 @@ A truly guaranteed alarm with the screen locked would need a native app or a pus
 - **Epley with a rep-in-reserve term** instead of the plain formula, for the closed-loop reason above. The plain formula is used in the 1RM calculator.
 - **Google Calendar sync needs your own client ID** (see above), because a static app has no server to own one. The .ics file route needs nothing and is still there. A subscribable `webcal://` feed is impossible without a server.
 - **No Garmin Connect API.** It is for approved companies and needs a server. Live heart rate comes from Bluetooth broadcast, and finished runs come in as TCX or GPX files.
-- **Exercise thumbnails are category icons** (strength, plyo, core, sprint, …). I did not ship exercise photos because they are licensed. To use your own, see `js/thumbs.js`.
+
+- **Exercise thumbnails are category icons** (strength, plyo, core, sprint, …). I did not ship exercise photos because they are licensed. To use your own, see `thumbs.js`.
 - **Sprints and recovery days** are logged as checklists and timed results from the spec's own wording.
 
 ## Your data
@@ -142,52 +165,67 @@ A strict Content-Security-Policy limits the app to its own files, `generativelan
 
 ## Project layout
 
+All of these are in one folder, with no subfolders.
+
 ```
-index.html            shell: one <main>, nav, workout overlay, sheet root
-manifest.webmanifest  PWA manifest (icons incl. maskable)
-sw.js                 offline cache + background rest notification
-css/styles.css        the whole design (tokens at the top)
-js/spec.js            your 16-week JSON, embedded verbatim
-js/engine.js          pure maths: 1RM, units, rest parsing, Zone 2, history, .ics
-js/program.js         spec -> concrete workout for each of the 112 days
-js/session.js         a live workout: prefill, supersets, rest plan, Ducky changes
-js/store.js           state + localStorage (API key and Google token stored separately)
-js/zone2.js           Karvonen, pace model, Bluetooth packets, TCX/GPX files, zone watcher (pure)
-js/sched.js           session times and moves, Google event ids and bodies, who-wins rule (pure)
-js/actions.js         every state change the UI can make (no DOM)
-js/timer.js           rest timer, chime, vibration, notifications, wake lock, zone cues
-js/hr.js              Web Bluetooth heart-rate sensor and the run in progress
-js/gcal.js            Google sign-in and Calendar API v3 sync (talks only through what it is handed)
-js/ai.js              Ducky: prompt, Gemini call, markdown, change parsing
-js/thumbs.js          optional exercise photos
-js/views.js           every screen as a pure function (state -> HTML)
-js/app.js             DOM glue: events, overlay, sheets, files
-tools/build-single.js builds dist/index.html (everything above in one file) and dist/sw.js
-dist/index.html       the single-file build (generated: edit the source, then rebuild)
-dist/sw.js            the optional service worker for it (the same text is embedded in index.html)
-tests/                logic, views, single-file and end-to-end tests
+index.html            the app: shell with one <main>, nav, workout overlay, sheet root
+manifest.webmanifest  PWA manifest
+sw.js                 offline cache + background rest notification (the loose-file app's worker)
+styles.css            the whole design (tokens at the top)
+fonts.css             @font-face for Big Shoulders
+BigShoulders-Bold.woff, OFL-BigShoulders.txt   the font and its licence
+icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png   app icons
+program.json          the 16-week plan as plain data (same content as spec.js; checked by the build and tests)
+
+guard.js              shows an explanation instead of a blank page if the app cannot start
+spec.js               your 16-week JSON, embedded verbatim
+engine.js             pure maths: 1RM, units, rest parsing, Zone 2, history, .ics
+program.js            spec -> concrete workout for each of the 112 days
+session.js            a live workout: prefill, supersets, rest plan, Ducky changes
+store.js              state + localStorage (API key and Google token stored separately)
+zone2.js              Karvonen, pace model, Bluetooth packets, TCX/GPX files, zone watcher (pure)
+sched.js              session times and moves, Google event ids and bodies, who-wins rule (pure)
+actions.js            every state change the UI can make (no DOM)
+timer.js              rest timer, chime, vibration, notifications, wake lock, zone cues
+hr.js                 Web Bluetooth heart-rate sensor and the run in progress
+gcal.js               Google sign-in and Calendar API v3 sync (talks only through what it is handed)
+ai.js                 Ducky: prompt, Gemini call, markdown, change parsing
+thumbs.js             optional exercise photos
+views.js              every screen as a pure function (state -> HTML)
+app.js                DOM glue: events, overlay, sheets, files
+
+build-single.js       builds index-single.html (everything above in one file) and sw-single.js
+gcal-off.js           the do-nothing stand-in for gcal.js that the safe single-file edition uses
+index-single.html     the single-file build (generated: edit the source files, then rebuild)
+sw-single.js          the optional service worker for it (the same text is embedded in index-single.html)
+
+logic.test.js, zone2.test.js, sync.test.js, views.test.js, single.test.js, e2e.test.js, fake-gcal.js   tests
 ```
+
+The scripts must load in the order `index.html` lists them (`guard`, `spec`, `engine`, `program`, `session`, `store`, `zone2`, `sched`, `actions`, `timer`, `hr`, `gcal`, `ai`, `thumbs`, `views`, `app`); each one uses what the earlier ones define.
 
 ## Tests
 
+Run these from inside the folder.
+
 ```bash
-node tests/logic.test.js     # maths, program for all 112 days, sessions, calendar  (no dependencies)
-node tests/views.test.js     # renders every screen for every day; checks HTML, CSS classes, wiring
-node tests/single.test.js    # the single-file build: self-contained, CSP hashes, manifest, embedded sw.js, modules copied verbatim
-node tests/zone2.test.js     # Karvonen, pace, Bluetooth packets, TCX/GPX, zone alerts
-node tests/sync.test.js      # schedule layer and Google Calendar sync against a fake Calendar API
-node tests/e2e.test.js       # drives the real UI in Chromium (needs: npm i playwright)
-SINGLE=1 node tests/e2e.test.js        # the same tests against dist/ (index.html + sw.js), plus opening it from file://
-SINGLE=alone node tests/e2e.test.js    # index.html served without sw.js, like a host that only got the one file
-SHOTS=./shots node tests/e2e.test.js   # also saves screenshots
+node logic.test.js     # maths, program for all 112 days, sessions, calendar  (no dependencies)
+node views.test.js     # renders every screen for every day; checks HTML, CSS classes, wiring
+node single.test.js    # both single-file editions: self-contained, CSP, manifest, embedded sw.js, modules copied verbatim
+node zone2.test.js     # Karvonen, pace, Bluetooth packets, TCX/GPX, zone alerts
+node sync.test.js      # schedule layer and Google Calendar sync against a fake Calendar API
+node e2e.test.js       # drives the real UI in Chromium (needs: npm i playwright)
+SINGLE=1 node e2e.test.js        # the same tests against the safe index-single.html (+ sw-single.js served as /sw.js), plus opening it from file:// and checking it contacts no other site
+SINGLE=alone node e2e.test.js    # index-single.html served without a service worker, like a host that only got the one file
+SHOTS=./shots node e2e.test.js   # also saves screenshots
 ```
 
 The end-to-end suite fakes Bluetooth (a heart-rate strap), Google sign-in and the Calendar API, so the running and sync features are tested through the real UI. It uses a fake clock, so it runs the rest timer, superset flow, reload recovery, Ducky (with a mocked Gemini), calendar download, backup/restore, unit switching, the weighted split squat and pull-ups, install/offline state (including Chromium's installability check), offline start and the CSP in about a minute.
 
 ## Updating
 
-When you change any shipped file, bump `CACHE` in `sw.js` (for example `ha-v5`; it is `ha-v4` now) so installed copies pick the change up on their next launch. Then run `node tools/build-single.js` to refresh `dist/index.html`; `tests/single.test.js` fails if it is out of date.
+When you change any shipped file, bump `CACHE` in `sw.js` (for example `ha-v5`; it is `ha-v4` now) so installed copies pick the change up on their next launch. Then run `node build-single.js` to refresh `index-single.html`; `single.test.js` fails if it is out of date. If you add a new script, add it to `index.html` (in order), and to the `SHELL` list in `sw.js` (the single-file build picks scripts up from `index.html` by itself).
 
 ## Licences
 
-Numerals and headings use **Big Shoulders** (SIL Open Font Licence 1.1; licence in `fonts/`). Body text uses your device's UI font.
+Numerals and headings use **Big Shoulders** (SIL Open Font Licence 1.1; the licence is in `OFL-BigShoulders.txt`). Body text uses your device's UI font.

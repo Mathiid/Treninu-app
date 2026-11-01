@@ -1,0 +1,603 @@
+/* Program data — embedded verbatim from the Hybrid Athlete Master Program spec. */
+(function (root) {
+  'use strict';
+  var HA = root.HA = root.HA || {};
+  HA.SPEC = {
+  "programName": "Hybrid Athlete Master Program",
+  "totalWeeks": 16,
+  "blocks": [
+    {
+      "blockNumber": 1,
+      "name": "Hypertrophy, Base & Tendon Capacity",
+      "weeks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "description": "3 weeks loading + 1 week deload",
+      "schedule": {
+        "day1": {
+          "title": "AM: Zone 2 Run | PM: Power & Base Leg Day + Upper Body",
+          "am": "Easy Zone 2 Run (30-45 mins). Fuel post-run.",
+          "steps": [
+            {
+              "type": "warmup",
+              "name": "Dynamic Warm-Up (8-10 mins)",
+              "details": "Leg swings, hip openers, inchworms, ankle dorsiflexion. Rest: 60 sec."
+            },
+            {
+              "type": "tendon",
+              "name": "Pause Split Squat Hold",
+              "progression": {
+                "W1": {
+                  "sets": 2,
+                  "reps": "20 sec/leg"
+                },
+                "W2": {
+                  "sets": 2,
+                  "reps": "25 sec/leg"
+                },
+                "W3": {
+                  "sets": 2,
+                  "reps": "30 sec/leg"
+                },
+                "W4": {
+                  "sets": 1,
+                  "reps": "15 sec/leg (Deload)"
+                }
+              },
+              "restBetweenSets": "60 sec",
+              "restAfter": "90 sec"
+            },
+            {
+              "type": "plyo",
+              "name": "Seated Box Vertical Jump",
+              "progression": {
+                "W1": {
+                  "sets": 3,
+                  "reps": 5
+                },
+                "W2": {
+                  "sets": 3,
+                  "reps": 5
+                },
+                "W3": {
+                  "sets": 3,
+                  "reps": 4
+                },
+                "W4": {
+                  "sets": 2,
+                  "reps": 3
+                }
+              },
+              "restBetweenSets": "90 sec"
+            },
+            {
+              "type": "plyo",
+              "name": "Ankle Pogo Hops",
+              "progression": {
+                "W1": {
+                  "sets": 3,
+                  "reps": 12
+                },
+                "W2": {
+                  "sets": 3,
+                  "reps": 15
+                },
+                "W3": {
+                  "sets": 3,
+                  "reps": 15
+                },
+                "W4": {
+                  "sets": 2,
+                  "reps": 10
+                }
+              },
+              "restBetweenSets": "60 sec",
+              "restAfter": "2 mins"
+            },
+            {
+              "type": "main",
+              "name": "Power Clean or High Pull",
+              "progression": {
+                "W1": {
+                  "sets": 4,
+                  "reps": 5
+                },
+                "W2": {
+                  "sets": 4,
+                  "reps": 4
+                },
+                "W3": {
+                  "sets": 4,
+                  "reps": 3
+                },
+                "W4": {
+                  "sets": 2,
+                  "reps": 3,
+                  "note": "Light"
+                }
+              },
+              "restBetweenSets": "2-3 mins"
+            },
+            {
+              "type": "main",
+              "name": "Bulgarian Split Squat",
+              "progression": {
+                "W1": {
+                  "sets": 3,
+                  "reps": "10 reps/leg"
+                },
+                "W2": {
+                  "sets": 3,
+                  "reps": "8 reps/leg"
+                },
+                "W3": {
+                  "sets": 3,
+                  "reps": "6 reps/leg"
+                },
+                "W4": {
+                  "sets": 2,
+                  "reps": "6 reps/leg",
+                  "note": "Light"
+                }
+              },
+              "restBetweenSets": "2 mins",
+              "restAfter": "2 mins"
+            },
+            {
+              "type": "superset",
+              "name": "Superset A (Horizontal Push + Floor Core) - 3 Rounds Total",
+              "exercises": [
+                {
+                  "name": "Plyo Push-Up (or Incline)",
+                  "sets": 1,
+                  "reps": "3-4",
+                  "rest": "30 sec"
+                },
+                {
+                  "name": "Bench Press",
+                  "progression": {
+                    "W1": "1x10",
+                    "W2": "1x8",
+                    "W3": "1x6",
+                    "W4": "1x6 (Light)"
+                  },
+                  "rest": "30 sec"
+                },
+                {
+                  "name": "Floor Hollow Body Hold",
+                  "sets": 1,
+                  "reps": "30-45 sec",
+                  "rest": "90 sec"
+                }
+              ],
+              "restAfterSuperset": "2 mins"
+            },
+            {
+              "type": "superset",
+              "name": "Superset B (Vertical Pull + Hanging Core) - 3 Rounds Total",
+              "exercises": [
+                {
+                  "name": "Pull-Ups",
+                  "progression": {
+                    "W1": "1x10",
+                    "W2": "1x8",
+                    "W3": "1x6",
+                    "W4": "1x5"
+                  },
+                  "rest": "30 sec"
+                },
+                {
+                  "name": "Hanging Leg Raises",
+                  "progression": {
+                    "W1": "1x12",
+                    "W2": "1x12",
+                    "W3": "1x10",
+                    "W4": "1x8"
+                  },
+                  "rest": "90 sec"
+                }
+              ]
+            }
+          ]
+        },
+        "day2": {
+          "title": "BJJ Gi Training (19:00 - 21:00)",
+          "effort": "60%-70% (Light / Controlled)",
+          "focus": "Guard retention, technical sweeps, positional control, smooth transitions. Avoid 100% death-gripping lapels. Tap early, defend with leverage."
+        },
+        "day3": {
+          "title": "BJJ No-Gi Training (19:00 - 21:00)",
+          "effort": "85%-95% (Hard / Competition Pace)",
+          "focus": "Wrestling takedowns, snap-downs, underhook control, aggressive submission chains. High-intensity hard scrambles."
+        },
+        "day4": {
+          "title": "Recovery, Mobility & Core Stability Day",
+          "sections": [
+            {
+              "name": "Spine Armor — The McGill Big 3",
+              "exercises": [
+                {
+                  "name": "McGill Curl-Up",
+                  "progression": {
+                    "W1-W3": "3 sets/side (10s->8s->6s pyramid)",
+                    "W4": "2 sets (8s->6s)"
+                  },
+                  "rest": "30-45 sec"
+                },
+                {
+                  "name": "McGill Side Plank",
+                  "progression": {
+                    "W1": "3x15s/side",
+                    "W2": "3x20s/side",
+                    "W3": "3x25s/side",
+                    "W4": "2x15s/side"
+                  },
+                  "rest": "30-45 sec"
+                },
+                {
+                  "name": "McGill Bird-Dog",
+                  "progression": {
+                    "W1-W3": "3x5 reps/side (8s hold)",
+                    "W4": "2x4 reps/side"
+                  },
+                  "rest": "30-45 sec"
+                }
+              ]
+            },
+            {
+              "name": "Soft Tissue & Dynamic Mobility Flow (20 mins)",
+              "details": "Foam Rolling (Calves, Quads, IT Bands, Lats, Upper Back - 8 mins). 90/90 Hip Switches (3x8/side), Cossack Squats (3x6/side), Thoracic Open Books (3x8/side), Ankle Wall Drives (3x10/side)."
+            },
+            {
+              "name": "Static Stretching & Parasympathetic Reset (15 mins)",
+              "details": "Couch Stretch (2x45-60s/side), Pigeon Stretch (2x45-60s/side), Parasympathetic Nasal Breathing (3 mins flat with legs elevated)."
+            }
+          ]
+        },
+        "day5": {
+          "title": "AM: Zone 2 Run | PM: Strength-Endurance & Posterior Chain + Upper Body",
+          "am": "Easy Zone 2 Run (30-45 mins). Fuel post-run.",
+          "steps": [
+            {
+              "type": "warmup",
+              "name": "Dynamic Warm-Up (8-10 mins)",
+              "details": "Dynamic lunges, lateral spiderman stretches, light jumping jacks. Rest: 60 sec."
+            },
+            {
+              "type": "tendon",
+              "name": "Yielding Iso RDL Hold",
+              "progression": {
+                "W1": {
+                  "sets": 2,
+                  "reps": "20 sec"
+                },
+                "W2": {
+                  "sets": 2,
+                  "reps": "25 sec"
+                },
+                "W3": {
+                  "sets": 2,
+                  "reps": "30 sec"
+                },
+                "W4": {
+                  "sets": 1,
+                  "reps": "15 sec (Deload)"
+                }
+              },
+              "restBetweenSets": "60 sec",
+              "restAfter": "90 sec"
+            },
+            {
+              "type": "plyo",
+              "name": "In-Place Split Jump Switches",
+              "progression": {
+                "W1": {
+                  "sets": 3,
+                  "reps": "6 total"
+                },
+                "W2": {
+                  "sets": 3,
+                  "reps": "6 total"
+                },
+                "W3": {
+                  "sets": 3,
+                  "reps": "4 total"
+                },
+                "W4": {
+                  "sets": 2,
+                  "reps": "4 total"
+                }
+              },
+              "restBetweenSets": "90 sec"
+            },
+            {
+              "type": "plyo",
+              "name": "Lateral Skater Hops (Stick Landing)",
+              "progression": {
+                "W1": {
+                  "sets": 3,
+                  "reps": "5 hops/side"
+                },
+                "W2": {
+                  "sets": 3,
+                  "reps": "5 hops/side"
+                },
+                "W3": {
+                  "sets": 3,
+                  "reps": "4 hops/side"
+                },
+                "W4": {
+                  "sets": 2,
+                  "reps": "3 hops/side"
+                }
+              },
+              "restBetweenSets": "60 sec",
+              "restAfter": "2 mins"
+            },
+            {
+              "type": "main",
+              "name": "Zercher Squat",
+              "progression": {
+                "W1": {
+                  "sets": 3,
+                  "reps": 10
+                },
+                "W2": {
+                  "sets": 3,
+                  "reps": 8
+                },
+                "W3": {
+                  "sets": 3,
+                  "reps": 6
+                },
+                "W4": {
+                  "sets": 2,
+                  "reps": 6,
+                  "note": "Light"
+                }
+              },
+              "restBetweenSets": "2-3 mins"
+            },
+            {
+              "type": "main",
+              "name": "Romanian Deadlift (RDL)",
+              "progression": {
+                "W1": {
+                  "sets": 3,
+                  "reps": 10
+                },
+                "W2": {
+                  "sets": 3,
+                  "reps": 8
+                },
+                "W3": {
+                  "sets": 3,
+                  "reps": 6
+                },
+                "W4": {
+                  "sets": 2,
+                  "reps": 6,
+                  "note": "Light"
+                }
+              },
+              "restBetweenSets": "2 mins"
+            },
+            {
+              "type": "main",
+              "name": "Nordic Hamstring Curls (Eccentric Focus)",
+              "progression": {
+                "W1": {
+                  "sets": 2,
+                  "reps": "4 (Banded/assisted)"
+                },
+                "W2": {
+                  "sets": 2,
+                  "reps": "5 (3s lowering eccentric)"
+                },
+                "W3": {
+                  "sets": 3,
+                  "reps": "5 (Maximal eccentric control)"
+                },
+                "W4": {
+                  "sets": 1,
+                  "reps": "4 (Very light/assisted)"
+                }
+              },
+              "restBetweenSets": "2 mins",
+              "restAfter": "2 mins"
+            },
+            {
+              "type": "superset",
+              "name": "Superset A (Horizontal Push + Anti-Rotation Core) - 3 Rounds Total",
+              "exercises": [
+                {
+                  "name": "Bench Press",
+                  "progression": {
+                    "W1": "1x10",
+                    "W2": "1x8",
+                    "W3": "1x6",
+                    "W4": "1x6 (Light)"
+                  },
+                  "rest": "30 sec"
+                },
+                {
+                  "name": "Pallof Press (or DB Drag Plank)",
+                  "progression": {
+                    "W1": "1x10/side",
+                    "W2": "1x10/side",
+                    "W3": "1x8/side",
+                    "W4": "1x8/side"
+                  },
+                  "rest": "90 sec"
+                }
+              ],
+              "restAfterSuperset": "2 mins"
+            },
+            {
+              "type": "superset",
+              "name": "Superset B (Explosive Pull + Hanging Core) - 3 Rounds Total",
+              "exercises": [
+                {
+                  "name": "Explosive Inverted Rows (or Speed Pull-Ups)",
+                  "sets": 1,
+                  "reps": "3-4",
+                  "rest": "30 sec"
+                },
+                {
+                  "name": "Pull-Ups",
+                  "progression": {
+                    "W1": "1x10",
+                    "W2": "1x8",
+                    "W3": "1x6",
+                    "W4": "1x5"
+                  },
+                  "rest": "30 sec"
+                },
+                {
+                  "name": "Hanging Knee-to-Elbows",
+                  "progression": {
+                    "W1": "1x10",
+                    "W2": "1x10",
+                    "W3": "1x8",
+                    "W4": "1x6"
+                  },
+                  "rest": "90 sec"
+                }
+              ]
+            }
+          ]
+        },
+        "day6": {
+          "title": "Acceleration & Hill Sprint Speed Day (Field / Hill)",
+          "steps": [
+            {
+              "name": "Dynamic Sprint Prep Warm-Up",
+              "details": "15 mins. Dynamic mobility, leg swings, progressive 30m build-ups (50%, 75%, 85% effort)."
+            },
+            {
+              "name": "Hip Mobility & 'No-Hurdle' Drills",
+              "details": "3 mins. Standing Wall Lead/Trail Leg Rotations (2x6/leg), High-Knee Walk Over Imaginary Hurdles (2x8 steps)."
+            },
+            {
+              "name": "Elastic & Acceleration Drills",
+              "exercises": [
+                {
+                  "name": "Wall Drives / Marching Sprint Switches",
+                  "progression": {
+                    "W1-W3": "3x5 switches/leg",
+                    "W4": "2x3 switches/leg"
+                  },
+                  "rest": "60 sec"
+                },
+                {
+                  "name": "Sub-Max Bounding (or In-Place Split Bounds)",
+                  "progression": {
+                    "W1": "3x10m",
+                    "W2": "3x15m",
+                    "W3": "3x15m",
+                    "W4": "2x10m"
+                  },
+                  "rest": "90 sec"
+                }
+              ]
+            },
+            {
+              "name": "Max Velocity & Hill Sprint Work (Alternate weekly Flat vs Hill)",
+              "flatSprints": {
+                "progression": {
+                  "W1": {
+                    "sprints": 4,
+                    "effort": "90%",
+                    "dist": "15-20m"
+                  },
+                  "W2": {
+                    "sprints": 5,
+                    "effort": "92%",
+                    "dist": "15-20m"
+                  },
+                  "W3": {
+                    "sprints": 6,
+                    "effort": "95%",
+                    "dist": "15-20m"
+                  },
+                  "W4": {
+                    "sprints": 3,
+                    "effort": "80%",
+                    "dist": "15m (Light)"
+                  }
+                },
+                "rest": "90-120 sec full rest"
+              },
+              "hillSprints": {
+                "progression": {
+                  "W1": {
+                    "sprints": 4,
+                    "dist": "10-15m steep"
+                  },
+                  "W2": {
+                    "sprints": 5,
+                    "dist": "10-15m steep"
+                  },
+                  "W3": {
+                    "sprints": 6,
+                    "dist": "10-15m steep"
+                  },
+                  "W4": {
+                    "sprints": 3,
+                    "dist": "10-15m steep (Light)"
+                  }
+                },
+                "rest": "90-120 sec full rest"
+              }
+            }
+          ]
+        },
+        "day7": {
+          "title": "Complete Rest & System Recovery"
+        }
+      }
+    },
+    {
+      "blockNumber": 2,
+      "name": "Functional Strength & Contrast Power",
+      "weeks": [
+        5,
+        6,
+        7,
+        8
+      ],
+      "rules": {
+        "mainLifts": "Drop reps to 4–6 heavy reps (80–88% 1RM).",
+        "nordicHamstringCurls": "3 sets of 4–6 reps (strict eccentric focus).",
+        "bjjGi": "Maintain 60–70% technical flow rolling.",
+        "bjjNoGi": "Maintain 85–95% high-intensity hard rolling.",
+        "contrastComplex": "Days 1 & 5: Overcoming Iso against pins (3–4 sec max drive) -> Rest 20 sec -> Explosive Jump/Bound (3–4 reps) -> Rest 2 mins (3 total rounds).",
+        "day6Speed": "Increase sprints to 20m–30m max velocity efforts & 15m hill drives.",
+        "week8Deload": "Complete Deload Week (50–60% 1RM, cut volume 50%)."
+      }
+    },
+    {
+      "blockNumber": 3,
+      "name": "Max Explosiveness, Speed & 1RM Peak",
+      "weeks": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "rules": {
+        "mainLifts": "Heavy singles/doubles/triples at 1–3 reps (88–92+% 1RM).",
+        "nordicHamstringCurls": "2 sets of 3–4 reps (lower volume to preserve maximum speed).",
+        "bjjGi": "Maintain 60–70% technical flow rolling.",
+        "bjjNoGi": "Maintain 85–95% competition-pace rolling.",
+        "contrastAndSpeed": "Depth Jumps, max distance single-leg bounds, Flying 20s.",
+        "day6Speed": "30m all-out sprints on flat field + steep 20m hill sprints.",
+        "week12Deload": "Complete Deload Week & Prep to reset cycle at higher baselines!"
+      }
+    }
+  ]
+};
+})(typeof window !== 'undefined' ? window : globalThis);

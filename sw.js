@@ -1,15 +1,15 @@
 /* Service worker: makes the app work offline and delivers the "rest is over" notification when the page
    itself has been frozen by the browser (screen off, app in the background).
    Bump CACHE whenever a shipped file changes.
-   The two BUILD lines are rewritten by tools/build-single.js for the single-file index.html, which has
+   The two BUILD lines are rewritten by build-single.js for the single-file page (index-single.html), which has
    nothing to cache but the page itself; there a missing file must not stop the worker installing. */
 'use strict';
 var CACHE = 'ha-v4';
 var SHELL = [   // BUILD:SHELL
-  './', 'index.html', 'manifest.webmanifest', 'css/styles.css', 'css/fonts.css', 'fonts/BigShoulders-Bold.woff',
-  'js/guard.js', 'js/spec.js', 'js/engine.js', 'js/program.js', 'js/session.js', 'js/store.js', 'js/zone2.js', 'js/sched.js', 'js/actions.js',
-  'js/timer.js', 'js/hr.js', 'js/gcal.js', 'js/ai.js', 'js/thumbs.js', 'js/views.js', 'js/app.js',
-  'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'
+  './', 'index.html', 'manifest.webmanifest', 'styles.css', 'fonts.css', 'BigShoulders-Bold.woff',
+  'guard.js', 'spec.js', 'engine.js', 'program.js', 'session.js', 'store.js', 'zone2.js', 'sched.js', 'actions.js',
+  'timer.js', 'hr.js', 'gcal.js', 'ai.js', 'thumbs.js', 'views.js', 'app.js',
+  'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'
 ];
 var STRICT = true;   // BUILD:STRICT
 
@@ -78,7 +78,7 @@ self.addEventListener('message', function (e) {
         if (visible) return;
         return self.registration.showNotification('Rest is over', {
           body: d.body || 'Time for your next set.', tag: 'ha-rest', renotify: true,
-          vibrate: [220, 90, 220, 90, 500], icon: d.icon || 'icons/icon-192.png', badge: d.icon || 'icons/icon-192.png'
+          vibrate: [220, 90, 220, 90, 500], icon: d.icon || 'icon-192.png', badge: d.icon || 'icon-192.png'
         });
       }).catch(function () { /* no notification permission */ }).then(resolve);
     }, wait);

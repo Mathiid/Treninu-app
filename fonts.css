@@ -1,0 +1,6 @@
+/* Big Shoulders (Bold), SIL Open Font Licence 1.1, see OFL-BigShoulders.txt.
+   Used for the numerals and headings. Body text uses the device's own UI font. */
+@font-face {
+  font-family: "Big Shoulders"; font-weight: 600 800; font-style: normal; font-display: swap;
+  src: url("BigShoulders-Bold.woff") format("woff");
+}
