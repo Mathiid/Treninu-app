@@ -4,7 +4,7 @@
    The two BUILD lines are rewritten by build-single.js for the single-file page (index-single.html), which has
    nothing to cache but the page itself; there a missing file must not stop the worker installing. */
 'use strict';
-var CACHE = 'ha-v5';
+var CACHE = 'ha-v6';
 var SHELL = [   // BUILD:SHELL
   './', 'index.html', 'manifest.webmanifest', 'styles.css', 'fonts.css', 'BigShoulders-Bold.woff',
   'guard.js', 'spec.js', 'engine.js', 'program.js', 'session.js', 'store.js', 'zone2.js', 'sched.js', 'actions.js',

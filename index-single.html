@@ -341,6 +341,7 @@ textarea { resize: none; }
 .p-name em { font-style: normal; color: var(--dust); font-size: 12.5px; background: var(--tape); border-radius: 99px; padding: 1px 7px; margin-left: 4px; white-space: nowrap; }
 .p-meta { color: var(--dust); font: 600 15px var(--f-num); letter-spacing: .01em; text-align: right; }
 .p-w { font: 700 17px var(--f-num); color: var(--duck); min-width: 62px; text-align: right; }
+.p-w small { display: block; font: 500 12px var(--f-ui); color: var(--dust); letter-spacing: 0; }
 .p-group { margin: 10px 0 2px; padding: 4px 0 2px 12px; border-left: 3px solid var(--duck); }
 .p-group.g-contrast { border-left-color: var(--warn); }
 .p-ghead { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
@@ -492,7 +493,7 @@ textarea { resize: none; }
 .thumb-img { overflow: hidden; background: var(--raise); }
 .thumb-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .t-main { color: var(--duck); } .t-tendon { color: #7fd6c2; } .t-plyo, .t-contrast { color: var(--warn); } .t-push, .t-pull { color: #8aa0ff; }
-.t-core { color: #d79bff; } .t-sprint, .t-drill { color: #ff8f4d; } .t-mobility, .t-warmup { color: var(--done); }
+.t-core, .t-finisher { color: #d79bff; } .t-sprint, .t-drill { color: #ff8f4d; } .t-mobility, .t-warmup { color: var(--done); }
 .ex-id { flex: 1; min-width: 0; }
 .ex-id h4 { font: 700 21px/1.15 var(--f-num); letter-spacing: .005em; }
 .ex-id p { color: var(--dust); font-size: 14px; margin-top: 1px; }
@@ -633,6 +634,31 @@ a.btn.done { color: var(--done); }
 .lr-actions { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
 .lr-actions .link { align-self: center; }
 
+/* ---------------------------------------------- fuel, sleep, program header */
+.page-head-long h1 { font-size: 30px; line-height: 1.05; }
+.prog-sub { margin: 8px 0 0; font-size: 14px; }
+.fuel, .sleep { padding: 0; overflow: hidden; }
+.fuel > summary, .sleep > summary { list-style: none; display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: center; padding: 14px 16px; cursor: pointer; min-height: 56px; }
+.fuel > summary::-webkit-details-marker, .sleep > summary::-webkit-details-marker { display: none; }
+.fuel > summary .ico, .sleep > summary .ico { grid-column: 2; grid-row: 1 / span 2; color: var(--dust); transition: transform .18s; }
+.fuel[open] > summary .ico, .sleep[open] > summary .ico { transform: rotate(180deg); }
+.fuel-t { font: 700 21px/1.1 var(--f-num); letter-spacing: .005em; }
+.fuel-s { grid-column: 1; color: var(--dust); font-size: 13.5px; margin-top: 2px; }
+.fuel-body { padding: 0 16px 14px; }
+.fuel h4 { margin: 14px 0 4px; color: var(--dust); font-size: 13.5px; font-weight: 600; }
+.meals, .sleeps { list-style: none; margin: 0; padding: 0 16px 14px; }
+.fuel .meals { padding: 0; }
+.meals li, .sleeps li { padding: 10px 0; border-top: 1px solid var(--line); }
+.meals li:first-child { border-top: 0; padding-top: 2px; }
+.meals b, .sleeps b { font-weight: 600; }
+.meals small, .sleeps small { margin-left: 8px; color: var(--duck); font-size: 12.5px; font-weight: 600; }
+.meals p, .sleeps p { color: var(--chalk); margin-top: 3px; line-height: 1.4; }
+.base { list-style: none; margin: 0; padding: 0; }
+.base li { display: grid; grid-template-columns: 92px 1fr; column-gap: 10px; padding: 6px 0; }
+.base b { color: var(--dust); font-weight: 600; font-size: 14px; }
+.base span { line-height: 1.35; }
+.sleep { margin-top: 18px; }
+
 @media (min-width: 700px) { body { background: #08090b; } #view { padding-top: 28px; } }
 @media (max-width: 370px) { .hero-week b { font-size: 62px; } .rest-clock { font-size: 54px; min-width: 96px; } .shead.m-weightReps, .srow.m-weightReps { grid-template-columns: 26px 1fr 66px 56px 42px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
@@ -726,605 +752,96 @@ a.btn.done { color: var(--done); }
 </script>
 <script>
 /* ---- spec.js ---- */
-/* Program data — embedded verbatim from the Hybrid Athlete Master Program spec. */
+/* Program data — embedded verbatim from the Hybrid Athlete Master Program & Tactical Recovery Manual (program.json is the same data).
+   Block 1 is read by program.js exactly as written here: change a load or a rep target in this text and the app follows. */
 (function (root) {
   'use strict';
   var HA = root.HA = root.HA || {};
   HA.SPEC = {
-  "programName": "Hybrid Athlete Master Program",
-  "totalWeeks": 16,
+  "programName": "Hybrid Athlete Master Program & Tactical Recovery Manual",
+  "targetProfile": "18-Year-Old Hybrid Athlete (179 cm, 70 kg) - Tactical Readiness (Latvian VAD / ISTAR Prep)",
+  "nutritionProtocols": {
+    "dailyBaseline": {
+      "creatine": "5g daily (post-workout with carbs on training days; with breakfast on rest days)",
+      "hydration": "3.5 to 4.0 Liters daily",
+      "electrolytes": "On BJJ (Days 2-3) and Sprint days (Day 6), add 1/4 tsp sea salt (500-700mg sodium) to fluids."
+    },
+    "timelines": {
+      "days1and5": "AM Zone 2 run -> Post-AM meal (1 scoop protein + banana + 60-80g oats/rice cakes within 30-45m). PM Heavy lift -> Post-PM meal (1.5 scoops protein + 5g creatine + cream of rice/cereal + juice OR 150g chicken + 1.5 cups white rice within 60m).",
+      "days2and3": "Pre-BJJ meal (15:30-16:30): 100g oats in water + 1 scoop protein + banana + honey. Intra-BJJ: 25-35g fast carbs + 1/4 tsp salt in 750ml water. Post-BJJ (21:30): 1 scoop protein + 5g creatine + 2 bananas OR 200g low-fat Greek yogurt + honey + cereal.",
+      "day6": "Post-Sprint meal: 3-4 eggs + 2 slices sourdough + 1 banana OR 1.5 scoops protein + 5g creatine + oats + peanut butter."
+    },
+    "sleepBlueprint": [
+      "3-Minute Post-Session Downshift (21:15): Lie flat, legs elevated, 4s nasal inhale / 6s nasal exhale box breathing.",
+      "Post-Training Insulin Spike (21:30): 50-70g fast carbs post-BJJ to crush cortisol.",
+      "Thermal Dump Shower (22:15): Warm shower ending with 30-60s cool water.",
+      "Bedroom Climate: 16-18°C. Screens off 30-45m before bed.",
+      "20-Minute Reset Rule: If awake after 20m, get up to a dim quiet room until sleepy."
+    ]
+  },
+  "weeklySchedule": {
+    "day1": "AM Zone 2 Run | PM Power & ATG Leg + Upper Push/Pull + Arm & Rotator Cuff Finisher A",
+    "day2": "BJJ Gi Training (19:00-21:00) 60-70% Effort + Post-Gi Decompression Flow",
+    "day3": "BJJ No-Gi Training (19:00-21:00) 85-95% Effort + Post-NoGi Decompression Flow",
+    "day4": "Full-Body Joint Mobility, Forearm Recovery, Neck Armor & McGill Reset",
+    "day5": "AM Zone 2 Run | PM Strength-Endurance & Posterior Chain + Upper Push/Pull + Arm & Shoulder Finisher B",
+    "day6": "Max Velocity Sprints & Hill Accelerations + Post-Sprint Reset Flow",
+    "day7": "Complete Rest & System Recovery"
+  },
   "blocks": [
     {
       "blockNumber": 1,
-      "name": "Hypertrophy, Base & Tendon Capacity",
-      "weeks": [
-        1,
-        2,
-        3,
-        4
-      ],
-      "description": "3 weeks loading + 1 week deload",
-      "schedule": {
-        "day1": {
-          "title": "AM: Zone 2 Run | PM: Power & Base Leg Day + Upper Body",
-          "am": "Easy Zone 2 Run (30-45 mins). Fuel post-run.",
-          "steps": [
-            {
-              "type": "warmup",
-              "name": "Dynamic Warm-Up (8-10 mins)",
-              "details": "Leg swings, hip openers, inchworms, ankle dorsiflexion. Rest: 60 sec."
-            },
-            {
-              "type": "tendon",
-              "name": "Pause Split Squat Hold",
-              "progression": {
-                "W1": {
-                  "sets": 2,
-                  "reps": "20 sec/leg"
-                },
-                "W2": {
-                  "sets": 2,
-                  "reps": "25 sec/leg"
-                },
-                "W3": {
-                  "sets": 2,
-                  "reps": "30 sec/leg"
-                },
-                "W4": {
-                  "sets": 1,
-                  "reps": "15 sec/leg (Deload)"
-                }
-              },
-              "restBetweenSets": "60 sec",
-              "restAfter": "90 sec"
-            },
-            {
-              "type": "plyo",
-              "name": "Seated Box Vertical Jump",
-              "progression": {
-                "W1": {
-                  "sets": 3,
-                  "reps": 5
-                },
-                "W2": {
-                  "sets": 3,
-                  "reps": 5
-                },
-                "W3": {
-                  "sets": 3,
-                  "reps": 4
-                },
-                "W4": {
-                  "sets": 2,
-                  "reps": 3
-                }
-              },
-              "restBetweenSets": "90 sec"
-            },
-            {
-              "type": "plyo",
-              "name": "Ankle Pogo Hops",
-              "progression": {
-                "W1": {
-                  "sets": 3,
-                  "reps": 12
-                },
-                "W2": {
-                  "sets": 3,
-                  "reps": 15
-                },
-                "W3": {
-                  "sets": 3,
-                  "reps": 15
-                },
-                "W4": {
-                  "sets": 2,
-                  "reps": 10
-                }
-              },
-              "restBetweenSets": "60 sec",
-              "restAfter": "2 mins"
-            },
-            {
-              "type": "main",
-              "name": "Power Clean or High Pull",
-              "progression": {
-                "W1": {
-                  "sets": 4,
-                  "reps": 5
-                },
-                "W2": {
-                  "sets": 4,
-                  "reps": 4
-                },
-                "W3": {
-                  "sets": 4,
-                  "reps": 3
-                },
-                "W4": {
-                  "sets": 2,
-                  "reps": 3,
-                  "note": "Light"
-                }
-              },
-              "restBetweenSets": "2-3 mins"
-            },
-            {
-              "type": "main",
-              "name": "Bulgarian Split Squat",
-              "progression": {
-                "W1": {
-                  "sets": 3,
-                  "reps": "10 reps/leg"
-                },
-                "W2": {
-                  "sets": 3,
-                  "reps": "8 reps/leg"
-                },
-                "W3": {
-                  "sets": 3,
-                  "reps": "6 reps/leg"
-                },
-                "W4": {
-                  "sets": 2,
-                  "reps": "6 reps/leg",
-                  "note": "Light"
-                }
-              },
-              "restBetweenSets": "2 mins",
-              "restAfter": "2 mins"
-            },
-            {
-              "type": "superset",
-              "name": "Superset A (Horizontal Push + Floor Core) - 3 Rounds Total",
-              "exercises": [
-                {
-                  "name": "Plyo Push-Up (or Incline)",
-                  "sets": 1,
-                  "reps": "3-4",
-                  "rest": "30 sec"
-                },
-                {
-                  "name": "Bench Press",
-                  "progression": {
-                    "W1": "1x10",
-                    "W2": "1x8",
-                    "W3": "1x6",
-                    "W4": "1x6 (Light)"
-                  },
-                  "rest": "30 sec"
-                },
-                {
-                  "name": "Floor Hollow Body Hold",
-                  "sets": 1,
-                  "reps": "30-45 sec",
-                  "rest": "90 sec"
-                }
-              ],
-              "restAfterSuperset": "2 mins"
-            },
-            {
-              "type": "superset",
-              "name": "Superset B (Vertical Pull + Hanging Core) - 3 Rounds Total",
-              "exercises": [
-                {
-                  "name": "Pull-Ups",
-                  "progression": {
-                    "W1": "1x10",
-                    "W2": "1x8",
-                    "W3": "1x6",
-                    "W4": "1x5"
-                  },
-                  "rest": "30 sec"
-                },
-                {
-                  "name": "Hanging Leg Raises",
-                  "progression": {
-                    "W1": "1x12",
-                    "W2": "1x12",
-                    "W3": "1x10",
-                    "W4": "1x8"
-                  },
-                  "rest": "90 sec"
-                }
-              ]
-            }
-          ]
-        },
-        "day2": {
-          "title": "BJJ Gi Training (19:00 - 21:00)",
-          "effort": "60%-70% (Light / Controlled)",
-          "focus": "Guard retention, technical sweeps, positional control, smooth transitions. Avoid 100% death-gripping lapels. Tap early, defend with leverage."
-        },
-        "day3": {
-          "title": "BJJ No-Gi Training (19:00 - 21:00)",
-          "effort": "85%-95% (Hard / Competition Pace)",
-          "focus": "Wrestling takedowns, snap-downs, underhook control, aggressive submission chains. High-intensity hard scrambles."
-        },
-        "day4": {
-          "title": "Recovery, Mobility & Core Stability Day",
-          "sections": [
-            {
-              "name": "Spine Armor — The McGill Big 3",
-              "exercises": [
-                {
-                  "name": "McGill Curl-Up",
-                  "progression": {
-                    "W1-W3": "3 sets/side (10s->8s->6s pyramid)",
-                    "W4": "2 sets (8s->6s)"
-                  },
-                  "rest": "30-45 sec"
-                },
-                {
-                  "name": "McGill Side Plank",
-                  "progression": {
-                    "W1": "3x15s/side",
-                    "W2": "3x20s/side",
-                    "W3": "3x25s/side",
-                    "W4": "2x15s/side"
-                  },
-                  "rest": "30-45 sec"
-                },
-                {
-                  "name": "McGill Bird-Dog",
-                  "progression": {
-                    "W1-W3": "3x5 reps/side (8s hold)",
-                    "W4": "2x4 reps/side"
-                  },
-                  "rest": "30-45 sec"
-                }
-              ]
-            },
-            {
-              "name": "Soft Tissue & Dynamic Mobility Flow (20 mins)",
-              "details": "Foam Rolling (Calves, Quads, IT Bands, Lats, Upper Back - 8 mins). 90/90 Hip Switches (3x8/side), Cossack Squats (3x6/side), Thoracic Open Books (3x8/side), Ankle Wall Drives (3x10/side)."
-            },
-            {
-              "name": "Static Stretching & Parasympathetic Reset (15 mins)",
-              "details": "Couch Stretch (2x45-60s/side), Pigeon Stretch (2x45-60s/side), Parasympathetic Nasal Breathing (3 mins flat with legs elevated)."
-            }
-          ]
-        },
-        "day5": {
-          "title": "AM: Zone 2 Run | PM: Strength-Endurance & Posterior Chain + Upper Body",
-          "am": "Easy Zone 2 Run (30-45 mins). Fuel post-run.",
-          "steps": [
-            {
-              "type": "warmup",
-              "name": "Dynamic Warm-Up (8-10 mins)",
-              "details": "Dynamic lunges, lateral spiderman stretches, light jumping jacks. Rest: 60 sec."
-            },
-            {
-              "type": "tendon",
-              "name": "Yielding Iso RDL Hold",
-              "progression": {
-                "W1": {
-                  "sets": 2,
-                  "reps": "20 sec"
-                },
-                "W2": {
-                  "sets": 2,
-                  "reps": "25 sec"
-                },
-                "W3": {
-                  "sets": 2,
-                  "reps": "30 sec"
-                },
-                "W4": {
-                  "sets": 1,
-                  "reps": "15 sec (Deload)"
-                }
-              },
-              "restBetweenSets": "60 sec",
-              "restAfter": "90 sec"
-            },
-            {
-              "type": "plyo",
-              "name": "In-Place Split Jump Switches",
-              "progression": {
-                "W1": {
-                  "sets": 3,
-                  "reps": "6 total"
-                },
-                "W2": {
-                  "sets": 3,
-                  "reps": "6 total"
-                },
-                "W3": {
-                  "sets": 3,
-                  "reps": "4 total"
-                },
-                "W4": {
-                  "sets": 2,
-                  "reps": "4 total"
-                }
-              },
-              "restBetweenSets": "90 sec"
-            },
-            {
-              "type": "plyo",
-              "name": "Lateral Skater Hops (Stick Landing)",
-              "progression": {
-                "W1": {
-                  "sets": 3,
-                  "reps": "5 hops/side"
-                },
-                "W2": {
-                  "sets": 3,
-                  "reps": "5 hops/side"
-                },
-                "W3": {
-                  "sets": 3,
-                  "reps": "4 hops/side"
-                },
-                "W4": {
-                  "sets": 2,
-                  "reps": "3 hops/side"
-                }
-              },
-              "restBetweenSets": "60 sec",
-              "restAfter": "2 mins"
-            },
-            {
-              "type": "main",
-              "name": "Zercher Squat",
-              "progression": {
-                "W1": {
-                  "sets": 3,
-                  "reps": 10
-                },
-                "W2": {
-                  "sets": 3,
-                  "reps": 8
-                },
-                "W3": {
-                  "sets": 3,
-                  "reps": 6
-                },
-                "W4": {
-                  "sets": 2,
-                  "reps": 6,
-                  "note": "Light"
-                }
-              },
-              "restBetweenSets": "2-3 mins"
-            },
-            {
-              "type": "main",
-              "name": "Romanian Deadlift (RDL)",
-              "progression": {
-                "W1": {
-                  "sets": 3,
-                  "reps": 10
-                },
-                "W2": {
-                  "sets": 3,
-                  "reps": 8
-                },
-                "W3": {
-                  "sets": 3,
-                  "reps": 6
-                },
-                "W4": {
-                  "sets": 2,
-                  "reps": 6,
-                  "note": "Light"
-                }
-              },
-              "restBetweenSets": "2 mins"
-            },
-            {
-              "type": "main",
-              "name": "Nordic Hamstring Curls (Eccentric Focus)",
-              "progression": {
-                "W1": {
-                  "sets": 2,
-                  "reps": "4 (Banded/assisted)"
-                },
-                "W2": {
-                  "sets": 2,
-                  "reps": "5 (3s lowering eccentric)"
-                },
-                "W3": {
-                  "sets": 3,
-                  "reps": "5 (Maximal eccentric control)"
-                },
-                "W4": {
-                  "sets": 1,
-                  "reps": "4 (Very light/assisted)"
-                }
-              },
-              "restBetweenSets": "2 mins",
-              "restAfter": "2 mins"
-            },
-            {
-              "type": "superset",
-              "name": "Superset A (Horizontal Push + Anti-Rotation Core) - 3 Rounds Total",
-              "exercises": [
-                {
-                  "name": "Bench Press",
-                  "progression": {
-                    "W1": "1x10",
-                    "W2": "1x8",
-                    "W3": "1x6",
-                    "W4": "1x6 (Light)"
-                  },
-                  "rest": "30 sec"
-                },
-                {
-                  "name": "Pallof Press (or DB Drag Plank)",
-                  "progression": {
-                    "W1": "1x10/side",
-                    "W2": "1x10/side",
-                    "W3": "1x8/side",
-                    "W4": "1x8/side"
-                  },
-                  "rest": "90 sec"
-                }
-              ],
-              "restAfterSuperset": "2 mins"
-            },
-            {
-              "type": "superset",
-              "name": "Superset B (Explosive Pull + Hanging Core) - 3 Rounds Total",
-              "exercises": [
-                {
-                  "name": "Explosive Inverted Rows (or Speed Pull-Ups)",
-                  "sets": 1,
-                  "reps": "3-4",
-                  "rest": "30 sec"
-                },
-                {
-                  "name": "Pull-Ups",
-                  "progression": {
-                    "W1": "1x10",
-                    "W2": "1x8",
-                    "W3": "1x6",
-                    "W4": "1x5"
-                  },
-                  "rest": "30 sec"
-                },
-                {
-                  "name": "Hanging Knee-to-Elbows",
-                  "progression": {
-                    "W1": "1x10",
-                    "W2": "1x10",
-                    "W3": "1x8",
-                    "W4": "1x6"
-                  },
-                  "rest": "90 sec"
-                }
-              ]
-            }
-          ]
-        },
-        "day6": {
-          "title": "Acceleration & Hill Sprint Speed Day (Field / Hill)",
-          "steps": [
-            {
-              "name": "Dynamic Sprint Prep Warm-Up",
-              "details": "15 mins. Dynamic mobility, leg swings, progressive 30m build-ups (50%, 75%, 85% effort)."
-            },
-            {
-              "name": "Hip Mobility & 'No-Hurdle' Drills",
-              "details": "3 mins. Standing Wall Lead/Trail Leg Rotations (2x6/leg), High-Knee Walk Over Imaginary Hurdles (2x8 steps)."
-            },
-            {
-              "name": "Elastic & Acceleration Drills",
-              "exercises": [
-                {
-                  "name": "Wall Drives / Marching Sprint Switches",
-                  "progression": {
-                    "W1-W3": "3x5 switches/leg",
-                    "W4": "2x3 switches/leg"
-                  },
-                  "rest": "60 sec"
-                },
-                {
-                  "name": "Sub-Max Bounding (or In-Place Split Bounds)",
-                  "progression": {
-                    "W1": "3x10m",
-                    "W2": "3x15m",
-                    "W3": "3x15m",
-                    "W4": "2x10m"
-                  },
-                  "rest": "90 sec"
-                }
-              ]
-            },
-            {
-              "name": "Max Velocity & Hill Sprint Work (Alternate weekly Flat vs Hill)",
-              "flatSprints": {
-                "progression": {
-                  "W1": {
-                    "sprints": 4,
-                    "effort": "90%",
-                    "dist": "15-20m"
-                  },
-                  "W2": {
-                    "sprints": 5,
-                    "effort": "92%",
-                    "dist": "15-20m"
-                  },
-                  "W3": {
-                    "sprints": 6,
-                    "effort": "95%",
-                    "dist": "15-20m"
-                  },
-                  "W4": {
-                    "sprints": 3,
-                    "effort": "80%",
-                    "dist": "15m (Light)"
-                  }
-                },
-                "rest": "90-120 sec full rest"
-              },
-              "hillSprints": {
-                "progression": {
-                  "W1": {
-                    "sprints": 4,
-                    "dist": "10-15m steep"
-                  },
-                  "W2": {
-                    "sprints": 5,
-                    "dist": "10-15m steep"
-                  },
-                  "W3": {
-                    "sprints": 6,
-                    "dist": "10-15m steep"
-                  },
-                  "W4": {
-                    "sprints": 3,
-                    "dist": "10-15m steep (Light)"
-                  }
-                },
-                "rest": "90-120 sec full rest"
-              }
-            }
-          ]
-        },
-        "day7": {
-          "title": "Complete Rest & System Recovery"
-        }
+      "name": "Hypertrophy, Base & Tendon Capacity (Weeks 1-4)",
+      "details": {
+        "day1": [
+          "Dynamic Warm-up & Joint Priming (8-10m) + Banded External Rotations (2x12/arm)",
+          "Tendon Prep: Pause Split Squat Hold (W1: 2x20s, W2: 2x25s, W3: 2x30s, W4: 1x15s deload)",
+          "Plyo: Seated Box Vertical Jump (W1-2: 3x5, W3: 3x4, W4: 2x3), Ankle Pogo Hops (W1: 3x12, W2-3: 3x15, W4: 2x10)",
+          "Main Lifts: Power Clean / High Pull (W1: 4x5 @52.5kg, W2: 4x4 @55kg, W3: 4x3 @60kg, W4: 2x3 @45kg deload). ATG Bulgarian Split Squat (W1: 3x10 @BW or 2x7.5kg DBs, W2: 3x8 @2x10kg, W3: 3x6 @2x12.5kg, W4: 2x6 @BW)",
+          "Superset A (3 Rounds): Plyo Push-Up (1x3-4) -> DB Bench Press (W1: 1x10 @22.5kg, W2: 1x8 @22.5kg, W3: 1x6 @25kg, W4: 1x6 @17.5kg) -> Floor Hollow Body Hold (1x30-45s)",
+          "Superset B (3 Rounds): Pull-Ups (W1: 1x10 @BW, W2: 1x8 @BW, W3: 1x6 @BW+2.5kg, W4: 1x5 @BW) -> Hanging Leg Raises (W1-2: 1x12, W3: 1x10, W4: 1x8)",
+          "Arm/Shoulder Finisher A: DB Hammer Curls (3x10-12) + Banded Face Pulls (3x15-20 with 1s hold)"
+        ],
+        "day2_3": "BJJ Sessions + Post-BJJ Decompression Flow (Child's pose lat reach, cobra-to-downward dog, thread the needle, legs-up-wall box breathing)",
+        "day4": [
+          "McGill Big 3 (Curl-up pyramids 10s->8s->6s, Side planks 15-25s, Bird-dogs 3x5 with 8s hold)",
+          "Cervical Neck Armor: 4-way manual iso holds (2x12-15s)",
+          "Shin/Ankle Armor: Wall Tibialis Raises (2x15-20)",
+          "Joint Mobility (20m): Right shoulder sleeper stretch, wrist rotations, elbow decompression, thoracic open books, 90/90 hip switches, cossack squats, ankle wall drives",
+          "Soft Tissue & Parasympathetic Reset: Foam rolling (8m), couch & pigeon stretches, 3m nasal breathing with legs elevated"
+        ],
+        "day5": [
+          "Dynamic Warm-up + Side-Lying Powell / Banded Rotations (2x10)",
+          "Tendon Prep: Yielding Iso RDL Hold (W1: 2x20s, W2: 2x25s, W3: 2x30s, W4: 1x15s)",
+          "Plyo: In-Place Split Jump Switches (W1-2: 3x6, W3: 3x4, W4: 2x4), Lateral Skater Hops (W1-2: 3x5, W3: 3x4, W4: 2x3)",
+          "Main Lifts: Zercher Squat (W1: 3x10 @50kg, W2: 3x8 @55kg, W3: 3x6 @57.5kg, W4: 2x6 @42.5kg). RDL (W1: 3x10 @52.5kg, W2: 3x8 @55kg, W3: 3x6 @60kg, W4: 2x6 @45kg). Nordic Hamstring Curls Eccentric (W1: 2x4 assisted, W2: 2x5 with 3s lowering, W3: 3x5 max eccentric control, W4: 1x4 light)",
+          "Superset A (3 Rounds): DB Bench Press (W1: 1x10 @22.5kg, W2: 1x8 @22.5kg, W3: 1x6 @25kg, W4: 1x6 @17.5kg) -> Pallof Press (1x8-10/side)",
+          "Superset B (3 Rounds): Explosive Inverted Rows (1x3-4) -> Pull-Ups (W1: 1x10 @BW, W2: 1x8 @BW, W3: 1x6 @BW+2.5kg, W4: 1x5 @BW) -> Hanging Knee-to-Elbows (W1-2: 1x10, W3: 1x8, W4: 1x6)",
+          "Arm/Shoulder Finisher B: Tricep Rope Pushdowns (3x12-15) + DB Lateral Raises (3x12-15)"
+        ],
+        "day6": [
+          "Sprint Warm-up (15m) + Hip Mobility / No-Hurdle drills",
+          "Elastic Drills: Wall drives (3x5 switches), Sub-max bounding (W1: 3x10m, W2-3: 3x15m, W4: 2x10m)",
+          "Max Velocity & Hill Sprints (Alternate weekly Flat 15-20m @90-95% vs Steep Hill 10-15m drives with 90-120s full rest)",
+          "Post-Sprint Lengthening Flow (Calf/achilles, hamstring, quad/pelvic tuck stretches, ankle circles)"
+        ],
+        "day7": "Complete Rest & System Recovery"
       }
     },
     {
       "blockNumber": 2,
-      "name": "Functional Strength & Contrast Power",
-      "weeks": [
-        5,
-        6,
-        7,
-        8
-      ],
-      "rules": {
-        "mainLifts": "Drop reps to 4–6 heavy reps (80–88% 1RM).",
-        "nordicHamstringCurls": "3 sets of 4–6 reps (strict eccentric focus).",
-        "bjjGi": "Maintain 60–70% technical flow rolling.",
-        "bjjNoGi": "Maintain 85–95% high-intensity hard rolling.",
-        "contrastComplex": "Days 1 & 5: Overcoming Iso against pins (3–4 sec max drive) -> Rest 20 sec -> Explosive Jump/Bound (3–4 reps) -> Rest 2 mins (3 total rounds).",
-        "day6Speed": "Increase sprints to 20m–30m max velocity efforts & 15m hill drives.",
-        "week8Deload": "Complete Deload Week (50–60% 1RM, cut volume 50%)."
-      }
+      "name": "Functional Strength & Contrast Power (Weeks 5-8)",
+      "rules": "Main lifts 4-6 heavy reps (80-88% 1RM). DB Bench progress to 27.5-30kg DBs. Contrast Complexes on Days 1 & 5 (Overcoming iso against pins 3-4s -> 20s rest -> explosive jump 3-4 reps -> 2 mins rest, 3 rounds). Nordic curls 3 sets of 4-6 reps strict eccentric. Sprint distances increase to 20-30m. Week 8 Deload."
     },
     {
       "blockNumber": 3,
-      "name": "Max Explosiveness, Speed & 1RM Peak",
-      "weeks": [
-        9,
-        10,
-        11,
-        12
-      ],
-      "rules": {
-        "mainLifts": "Heavy singles/doubles/triples at 1–3 reps (88–92+% 1RM).",
-        "nordicHamstringCurls": "2 sets of 3–4 reps (lower volume to preserve maximum speed).",
-        "bjjGi": "Maintain 60–70% technical flow rolling.",
-        "bjjNoGi": "Maintain 85–95% competition-pace rolling.",
-        "contrastAndSpeed": "Depth Jumps, max distance single-leg bounds, Flying 20s.",
-        "day6Speed": "30m all-out sprints on flat field + steep 20m hill sprints.",
-        "week12Deload": "Complete Deload Week & Prep to reset cycle at higher baselines!"
-      }
+      "name": "Max Explosiveness, Speed & 1RM Peak (Weeks 9-12)",
+      "rules": "Main lifts heavy singles/doubles/triples at 1-3 reps (88-92+% 1RM). Nordic curls reduced to 2 sets of 3-4 reps. Introduce Depth Jumps, single-leg bounds, Flying 20s. Day 6: 30m all-out flat sprints + 20m steep hill sprints. Week 12 Deload."
+    },
+    {
+      "blockNumber": 4,
+      "name": "Cycle Reset & Baseline Elevation (Weeks 13-16)",
+      "rules": "Recalculate 1RM baselines from Block 3 peak. Restart 4-week wave loading structure at higher baseline. Pre-VAD transition: integrate progressive bi-weekly rucking (10-20kg), 3km timed run pacing, and post-lift push-up burnouts."
     }
   ]
 };
@@ -1424,6 +941,10 @@ a.btn.done { color: var(--done); }
   }
   // what fraction of the 1RM a typed weight really is (null when unknown)
   function pctOfRM(key, w, rmKg, bw) { var l = loadKg(key, w, bw); return l > 0 && rmKg > 0 ? l / rmKg : null; }
+
+  // A weight written in the program in kilograms (Block 1), as you would load it: unchanged in kg; in pounds it is rounded to your
+  // plate step (22.5 kg is 49.6 lb, which you load as 50 lb). Zero stays zero (bodyweight).
+  function fixedKg(kg, s) { return s && s.units === 'lb' && kg > 0 ? roundWeightKg(kg, s) : kg; }
 
   /* ------------------------------------------------------------------ units */
   function incOf(s) { return s.increment > 0 ? +s.increment : (s.units === 'lb' ? 5 : 2.5); }
@@ -1718,7 +1239,7 @@ a.btn.done { color: var(--done); }
     nextMondayISO: nextMondayISO, position: position, dateFor: dateFor,
     epley: epley, e1rmAdj: e1rmAdj, pctFor: pctFor, rirFor: rirFor,
     LIFT_KEYS: LIFT_KEYS, bodyKg: bodyKg, loadKg: loadKg, workingKg: workingKg, pctOfRM: pctOfRM,
-    incOf: incOf, toDisp: toDisp, toKg: toKg, roundWeightKg: roundWeightKg, fmtNum: fmtNum, fmtW: fmtW,
+    fixedKg: fixedKg, incOf: incOf, toDisp: toDisp, toKg: toKg, roundWeightKg: roundWeightKg, fmtNum: fmtNum, fmtW: fmtW,
     parseRest: parseRest, parseTarget: parseTarget, fmtTarget: fmtTarget,
     maxHR: maxHR, zone2: zone2, zone2Text: zone2Text,
     normName: normName, bestE1RMOfLog: bestE1RMOfLog, e1rmPoints: e1rmPoints, oneRMFor: oneRMFor,
@@ -1731,45 +1252,52 @@ a.btn.done { color: var(--done); }
 </script>
 <script>
 /* ---- program.js ---- */
-/* program.js — turns the embedded 16-week spec into a concrete workout for every (week, day).
-   Block 1 comes straight from the spec data. Blocks 2 and 3 only ship as rules in the spec, so they
-   are generated from Block 1's exercises + those rules. Weeks 13-16 are not in the spec; they are an
-   explicit, flagged assumption: Block 1's wave repeats at the (recalibrated, higher) baselines. */
+/* program.js — turns the embedded Master Program (spec.js) into a concrete workout for every (week, day), and reads its
+   nutrition and sleep protocols.
+   Block 1 is read straight from the program text: every set, rep target and load comes from the strings in spec.js, so
+   changing a number there changes the app. Blocks 2 and 3 only ship as rules in the program, so they are generated from
+   Block 1's exercises plus those rules (percent of your estimated 1RM). Block 4 repeats Block 1's wave at your recalibrated
+   baselines (percent of 1RM) and adds the Pre-VAD items. */
 (function (root) {
   'use strict';
   var HA = root.HA = root.HA || {};
   var E = HA.engine, SPEC = HA.SPEC;
-  var B1 = SPEC.blocks[0].schedule;
+  var B1 = SPEC.blocks[0].details, SCHED = SPEC.weeklySchedule, NUT = SPEC.nutritionProtocols || {};
 
-  var LIFT_BY_NAME = {
-    'Power Clean or High Pull': 'clean', 'Zercher Squat': 'zercher',
-    'Romanian Deadlift (RDL)': 'rdl', 'Bench Press': 'bench',
-    'Bulgarian Split Squat': 'bss', 'Pull-Ups': 'pullup'          // weighted: tracked against an estimated 1RM
-  };
-  var LIFT_LABEL = { bench: 'Bench Press', zercher: 'Zercher Squat', clean: 'Power Clean', rdl: 'Romanian Deadlift',
+  var LIFT_LABEL = { bench: 'DB Bench Press (each dumbbell)', zercher: 'Zercher Squat', clean: 'Power Clean', rdl: 'Romanian Deadlift',
                      bss: 'Bulgarian Split Squat', pullup: 'Pull-up' };
-  var WEIGHTED = {
-    'Power Clean or High Pull': 1, 'Zercher Squat': 1, 'Romanian Deadlift (RDL)': 1, 'Bench Press': 1,
-    'Bulgarian Split Squat': 1, 'Pull-Ups': 1, 'Pallof Press (or DB Drag Plank)': 1
-  };
+  // The six lifts tracked against an estimated 1RM. The match is on the start of the name, so "Yielding Iso RDL Hold" is not the RDL.
+  function liftKeyOf(name) {
+    var n = String(name);
+    if (/^power clean/i.test(n)) return 'clean';
+    if (/^zercher squat/i.test(n)) return 'zercher';
+    if (/^(romanian deadlift|rdl)\b/i.test(n)) return 'rdl';
+    if (/^(db )?bench press/i.test(n)) return 'bench';
+    if (/bulgarian split squat/i.test(n)) return 'bss';          // weighted: the total weight held, reps per leg
+    if (/^pull-?ups?\b/i.test(n)) return 'pullup';               // weighted: bodyweight plus the weight added
+    return null;
+  }
+  // Exercises whose weight is logged (the six lifts, and accessories that repeat last time's weight and add a plate step).
+  var WEIGHTED_RE = /^(power clean|zercher squat|romanian deadlift|rdl\b|(db )?bench press|(atg )?bulgarian split squat|pull-?ups?\b|db hammer curls|tricep rope pushdowns|db lateral raises|pallof press)/i;
   var DAY_META = {
-    1: { kind: 'strength', short: 'Power & Base Leg Day + Upper' },
+    1: { kind: 'strength', short: 'Power & ATG Leg + Upper' },
     2: { kind: 'bjj', short: 'BJJ Gi' },
     3: { kind: 'bjj', short: 'BJJ No-Gi' },
-    4: { kind: 'recovery', short: 'Recovery, Mobility & Core' },
+    4: { kind: 'recovery', short: 'Mobility, Neck Armor & McGill Reset' },
     5: { kind: 'strength', short: 'Strength-Endurance & Posterior Chain + Upper' },
-    6: { kind: 'speed', short: 'Acceleration & Hill Sprints' },
+    6: { kind: 'speed', short: 'Max Velocity Sprints & Hill Accelerations' },
     7: { kind: 'rest', short: 'Rest & System Recovery' }
   };
 
   /* ----------------------------------------------------------------- blocks */
   // Each block wears a BJJ belt colour: white, blue, purple, brown.
+  function blockName(i) { return String(SPEC.blocks[i].name).replace(/\s*\(Weeks?[^)]*\)\s*$/i, ''); }
   var BLOCKS = [
-    { n: 1, phase: 'b1', from: 1, name: SPEC.blocks[0].name, belt: 'white', derived: false, assumed: false, blurb: SPEC.blocks[0].description },
-    { n: 2, phase: 'b2', from: 5, name: SPEC.blocks[1].name, belt: 'blue', derived: true, assumed: false, blurb: '3 weeks loading + 1 week deload. Built from the Block 2 rules.' },
-    { n: 3, phase: 'b3', from: 9, name: SPEC.blocks[2].name, belt: 'purple', derived: true, assumed: false, blurb: '3 weeks peaking + 1 week deload. Built from the Block 3 rules.' },
-    { n: 4, phase: 'b4', from: 13, name: 'Reset Wave at Higher Baselines', belt: 'brown', derived: false, assumed: true,
-      blurb: 'Not in your spec. Assumed: Block 1 repeats, with weights recalibrated from your Block 3 peak.' }
+    { n: 1, phase: 'b1', from: 1, name: blockName(0), belt: 'white', derived: false, assumed: false, blurb: '3 weeks loading + 1 week deload. Loads are the kilograms in your program.' },
+    { n: 2, phase: 'b2', from: 5, name: blockName(1), belt: 'blue', derived: true, assumed: false, blurb: '3 weeks loading + 1 week deload. Built from the Block 2 rules.' },
+    { n: 3, phase: 'b3', from: 9, name: blockName(2), belt: 'purple', derived: true, assumed: false, blurb: '3 weeks peaking + 1 week deload. Built from the Block 3 rules.' },
+    { n: 4, phase: 'b4', from: 13, name: blockName(3), belt: 'brown', derived: true, assumed: false,
+      blurb: 'Block 1’s 4-week wave again at weights recalculated from your Block 3 peak, plus rucking, a 3 km timed run and push-up burnouts.' }
   ];
   function blockOf(week) {
     var b = BLOCKS[Math.min(3, Math.floor((week - 1) / 4))];
@@ -1777,34 +1305,101 @@ a.btn.done { color: var(--done); }
     return { n: b.n, phase: b.phase, name: b.name, belt: b.belt, derived: b.derived, assumed: b.assumed, blurb: b.blurb, wb: wb, deload: wb === 4 };
   }
 
-  /* ---------------------------------------------------------------- helpers */
-  function pick(prog, wb) {
-    if (!prog) return null;
-    if (prog['W' + wb] !== undefined) return prog['W' + wb];
-    var k, m;
-    for (k in prog) {
-      m = /^W(\d+)-W(\d+)$/.exec(k);
-      if (m && wb >= +m[1] && wb <= +m[2]) return prog[k];
+  /* ----------------------------------------------- reading the program text */
+  function cap(s) { s = String(s || '').trim(); return s.charAt(0).toUpperCase() + s.slice(1); }
+  function fmtMin(s) { return String(s || '').replace(/(\d+)\s*-\s*(\d+)\s*m(?:ins?)?\b/i, '$1–$2 min').replace(/(\d+)\s*m(?:ins?)?\b/i, '$1 min'); }
+  // Splits at a separator (a sticky regex) only where it is not inside brackets.
+  function splitDepth0(str, sep) {
+    var out = [], cur = '', depth = 0, i = 0, ch, m;
+    str = String(str || '');
+    while (i < str.length) {
+      ch = str.charAt(i);
+      if (ch === '(') depth++; else if (ch === ')') depth = Math.max(0, depth - 1);
+      if (depth === 0) {
+        sep.lastIndex = i; m = sep.exec(str);
+        if (m && m[0].length) { out.push(cur); cur = ''; i += m[0].length; continue; }
+      }
+      cur += ch; i++;
     }
-    return null;
+    out.push(cur);
+    return out.map(function (x) { return x.trim(); }).filter(Boolean);
+  }
+  var RE = { plus: /\s\+\s/y, arrow: /\s->\s/y, comma: /,\s*/y, sentence: /\.\s+(?=[A-Z])/y };
+  function flat(a) { return [].concat.apply([], a); }
+  // "A (..), B (..). C (..)" or "A + B" -> ["A (..)", "B (..)", "C (..)"]
+  function splitItems(body) {
+    return flat(splitDepth0(body, RE.sentence).map(function (s) {
+      return flat(splitDepth0(s, RE.comma).map(function (t) { return splitDepth0(t, RE.plus); }));
+    }));
+  }
+  // "Tendon Prep: Pause Split Squat Hold (...)" -> { head: 'Tendon Prep', body: 'Pause Split Squat Hold (...)' }
+  function headOf(line) {
+    var depth = 0, i, ch;
+    for (i = 0; i < line.length; i++) {
+      ch = line.charAt(i);
+      if (ch === '(') depth++; else if (ch === ')') depth = Math.max(0, depth - 1);
+      else if (ch === ':' && depth === 0 && /\s/.test(line.charAt(i + 1))) return { head: line.slice(0, i).trim(), body: line.slice(i + 1).trim() };
+    }
+    return { head: '', body: String(line).trim() };
+  }
+  // "W1: 4x5 @52.5kg, W2-3: 3x15, W4: 2x3 @45kg deload" -> { 1: '4x5 @52.5kg', 2: '3x15', 3: '3x15', 4: '2x3 @45kg deload' }
+  function parseWeeks(inner) {
+    var map = {};
+    String(inner).split(/,\s*(?=W\d)/).forEach(function (part) {
+      var m = /^W(\d)(?:\s*-\s*(\d))?\s*:\s*(.*)$/.exec(part.trim());
+      if (!m) return;
+      for (var w = +m[1]; w <= +(m[2] || m[1]); w++) map[w] = m[3].trim();
+    });
+    return map;
+  }
+  function parseToken(tok) {
+    var m = /^(.*?)\s*\((.*)\)\s*$/.exec(tok), name = m ? m[1].trim() : String(tok).trim(), inner = m ? m[2].trim() : '';
+    return { name: name, inner: inner, weeks: /^W\d/.test(inner) ? parseWeeks(inner) : null };
+  }
+  // "4x5 @52.5kg", "1x10 @BW", "3x6 @2x12.5kg", "1x6 @BW+2.5kg", "3x10 @BW or 2x7.5kg DBs", "2x3 @45kg deload", "2x4 assisted", "2x20s"
+  // -> { p: parsed target, kg: the weight to type (null = none given), loadNote, note }
+  function parseCell(cell) {
+    var s = String(cell || '').trim(), at = s.indexOf('@');
+    var head = at >= 0 ? s.slice(0, at).trim() : s, tail = at >= 0 ? s.slice(at + 1).trim() : '';
+    var out = { p: E.parseTarget(head), kg: null, loadNote: '', note: '' }, m, extra = '';
+    if (tail) {
+      if ((m = /^BW\s*\+\s*(\d+(?:\.\d+)?)\s*kg\b\s*(.*)$/i.exec(tail))) { out.kg = +m[1]; extra = m[2]; }
+      else if ((m = /^BW\b(?:\s+or\s+2\s*x\s*(\d+(?:\.\d+)?)\s*kg(?:\s*DBs?)?)?\s*(.*)$/i.exec(tail))) {
+        out.kg = m[1] ? 2 * +m[1] : 0; out.loadNote = m[1] ? 'Bodyweight, or 2 × ' + m[1] + ' kg dumbbells' : ''; extra = m[2];
+      } else if ((m = /^2\s*x\s*(\d+(?:\.\d+)?)\s*kg\b\s*(.*)$/i.exec(tail))) { out.kg = 2 * +m[1]; out.loadNote = '2 × ' + m[1] + ' kg dumbbells'; extra = m[2]; }
+      else if ((m = /^(\d+(?:\.\d+)?)\s*kg\b\s*(.*)$/i.exec(tail))) { out.kg = +m[1]; extra = m[2]; }
+      else extra = tail;
+    }
+    out.note = cap(extra);
+    return out;
   }
   function catOf(name) {
-    if (/hollow|hanging|pallof|plank/i.test(name)) return 'core';
+    if (/hollow|hanging|pallof|plank|leg raise|knee-to-elbow/i.test(name)) return 'core';
     if (/push-up|bench/i.test(name)) return 'push';
     if (/pull|row/i.test(name)) return 'pull';
     return 'main';
   }
+  // The rest after a set when the program does not give one (it gives rests only for sprints and the contrast complex).
+  function restFor(name, cat, inGroup) {
+    if (inGroup) return 30;
+    if (cat === 'tendon') return 60;
+    if (cat === 'plyo') return 90;
+    if (cat === 'finisher' || cat === 'core') return 45;
+    if (/power clean/i.test(name)) return 150;
+    if (/nordic|bulgarian/i.test(name)) return 90;
+    return cat === 'main' ? 120 : 60;
+  }
   function mkEx(o) {
     var p = o.parsed || E.parseTarget(o.reps);
     var mode = o.mode;
-    if (!mode) mode = WEIGHTED[o.name] ? 'weightReps' : p.unit === 'sec' ? 'hold' : p.unit === 'm' ? 'check' : 'reps';
+    if (!mode) mode = WEIGHTED_RE.test(o.name) ? 'weightReps' : p.unit === 'sec' ? 'hold' : p.unit === 'm' ? 'check' : 'reps';
     var ex = {
       id: o.id, name: o.name, cat: o.cat || 'main', mode: mode,
       unit: p.unit, suffix: p.suffix, lo: p.lo, hi: p.hi, target: p.lo,
       label: o.label != null ? o.label : E.fmtTarget(p),
       note: (o.note != null ? o.note : p.note) || '',
       sets: o.sets || p.sets || 1,
-      liftKey: LIFT_BY_NAME[o.name] || null, pct: null, rir: null,
+      liftKey: liftKeyOf(o.name), pct: null, rir: null, kg: o.kg != null ? o.kg : null,
       rest: o.rest != null ? o.rest : 60,
       restAfter: o.restAfter != null ? o.restAfter : (o.rest != null ? o.rest : 60),
       info: o.info || ''
@@ -1812,89 +1407,98 @@ a.btn.done { color: var(--done); }
     if (mode === 'check' || mode === 'result') ex.target = null;
     return ex;
   }
-  function splitTop(str) {
-    var out = [], depth = 0, cur = '';
-    Array.from(str).forEach(function (ch) {
-      if (ch === '(') depth++;
-      if (ch === ')') depth--;
-      if (ch === ',' && depth === 0) { out.push(cur.trim()); cur = ''; } else cur += ch;
-    });
-    if (cur.trim()) out.push(cur.trim());
-    return out;
-  }
-  // "Foam Rolling (...). 90/90 Hip Switches (3x8/side), Cossack Squats (3x6/side)." -> tokens
-  function splitDetails(details) {
-    var out = [];
-    String(details || '').split(/\.\s+/).forEach(function (sentence) {
-      splitTop(sentence.replace(/\.\s*$/, '')).forEach(function (t) {
-        if (t && !/^\d+\s*mins?$/i.test(t)) out.push(t);
-      });
-    });
-    return out;
-  }
-  function tokenToEx(token, id, cat) {
-    var m = /^(.*?)\s*\((.*)\)\s*$/.exec(token);
-    var name = m ? m[1].trim() : token, inner = m ? m[2] : '';
-    if (m && /^\d+\s*x/i.test(inner)) {
-      var p = E.parseTarget(inner);
-      return mkEx({ id: id, name: name, cat: cat, reps: inner, rest: p.unit === 'sec' ? 15 : 20 });
+  // One program item for week-in-block wb, or null when the program has no entry for that week.
+  function exFromToken(tok, wb, o) {
+    var it = parseToken(tok), cell = it.weeks ? it.weeks[wb] : it.inner;
+    if (it.weeks && cell === undefined) return null;
+    if (/warm-?up/i.test(it.name) && !it.weeks && !/^\d+\s*x/i.test(it.inner)) {
+      return mkEx({ id: o.id, name: it.name, cat: 'warmup', mode: 'check', reps: '1', label: fmtMin(it.inner), rest: 0 });
     }
-    return mkEx({ id: id, name: name, cat: cat, mode: 'check', reps: '1', label: inner, rest: 0 });
+    var c = parseCell(cell), p = c.p, cat = o.cat || catOf(it.name), name = it.name;
+    if (/split squat hold/i.test(name) && p.unit === 'sec' && !p.suffix) p.suffix = '/leg';
+    if (/bulgarian split squat/i.test(name) && !p.suffix) p.suffix = '/leg';          // reps are counted per leg
+    if (/^RDL$/i.test(name)) name = 'Romanian Deadlift (RDL)';                        // the name Ducky and the video search understand
+    var keep = o.keepKg !== false && c.kg != null;
+    var notes = [c.note, keep ? c.loadNote : ''].filter(Boolean);
+    var rest = o.rest != null ? o.rest : restFor(name, cat, !!o.rounds);
+    return mkEx({ id: o.id, name: name, cat: cat, parsed: p, sets: o.rounds || p.sets || 1, rest: rest,
+                  restAfter: o.restAfter != null ? o.restAfter : (cat === 'tendon' ? 90 : rest), kg: keep ? c.kg : null,
+                  note: notes.join('. '), label: p.lo == null ? '' : undefined });
+  }
+  function buildGroup(head, body, wb, id, keepKg) {
+    var m = /^(Superset\s+[A-Z])\s*\((\d+)\s*Rounds?\)/i.exec(head) || [], rounds = +m[2] || 3;
+    var toks = splitDepth0(body, RE.arrow);
+    var exs = toks.map(function (tok, i) {
+      return exFromToken(tok, wb, { id: id + '-' + i, rounds: rounds, keepKg: keepKg, rest: i < toks.length - 1 ? 30 : 90 });
+    }).filter(Boolean);
+    return { kind: 'group', label: m[1] || 'Superset', sub: '', variant: 'superset', rounds: rounds, restAfter: 90, exs: exs };
   }
 
-  /* ----------------------------------------------- Block 1 (spec) day builders */
-  function buildGroup(st, wb, id) {
-    var m = /^(Superset\s+[A-Z])\s*\(([^)]*)\)\s*-\s*(\d+)\s*Rounds/i.exec(st.name) || [];
-    var rounds = +m[3] || 3;
-    var exs = st.exercises.map(function (x, i) {
-      var reps = x.progression ? pick(x.progression, wb) : x.reps;
-      return mkEx({ id: id + '-' + i, name: x.name, cat: catOf(x.name), reps: reps, sets: rounds, rest: E.parseRest(x.rest) });
+  /* -------------------------------- Block 1: strength days (Days 1 and 5) */
+  function buildSpecItems(dayKey, wb, ctx, keepKg) {
+    var items = [], idx = 0;
+    B1[dayKey].forEach(function (line) {
+      var h = headOf(line), head = h.head, id = ctx.wid + '-' + (idx++);
+      if (/^Superset/i.test(head)) { var g = buildGroup(head, h.body, wb, id, keepKg); if (g.exs.length) items.push(g); return; }
+      var cat = /^Tendon/i.test(head) ? 'tendon' : /^Plyo/i.test(head) ? 'plyo' : /^Main/i.test(head) ? 'main' : /Finisher/i.test(head) ? 'finisher' : '';
+      splitItems(h.body).forEach(function (tok, k) {
+        var ex = exFromToken(tok, wb, { id: id + '-' + k, cat: cat, keepKg: keepKg });
+        if (ex) items.push({ kind: 'ex', ex: ex });
+      });
     });
-    return { kind: 'group', label: m[1] || 'Superset', sub: m[2] || '', variant: 'superset', rounds: rounds,
-             restAfter: E.parseRest(st.restAfterSuperset), exs: exs };
+    return items;
   }
-  function stepToItem(st, wb, ctx, idx) {
-    var id = ctx.wid + '-' + idx;
-    if (st.type === 'warmup') {
-      var rm = /Rest:\s*([^.]+)/i.exec(st.details || '');
-      var rest = rm ? E.parseRest(rm[1]) : null;
-      return { kind: 'ex', ex: mkEx({ id: id, name: st.name, cat: 'warmup', mode: 'check', reps: '1', label: '', info: st.details, rest: rest == null ? 60 : rest }) };
+
+  /* ----------------------------------------- Day 4: mobility and recovery */
+  // "Side planks 15-25s", "Bird-dogs 3x5 with 8s hold", "Curl-up pyramids 10s->8s->6s", "Foam rolling (8m)", "3m nasal breathing with legs elevated"
+  function looseEx(tok, id, cat) {
+    var m, name, ex;
+    if ((m = /^(.*?)\s*\((\d+x[^)]*)\)\s*$/i.exec(tok))) return mkEx({ id: id, name: cap(m[1]), cat: cat, reps: m[2], rest: 20 });
+    if ((m = /^(.*?)\s*\((\d+(?:-\d+)?\s*m)\)\s*$/i.exec(tok))) return mkEx({ id: id, name: cap(m[1]), cat: cat, mode: 'check', reps: '1', label: fmtMin(m[2]), rest: 0 });
+    if ((m = /^(\d+)\s*m\s+(.*)$/i.exec(tok))) return mkEx({ id: id, name: cap(m[2]), cat: cat, mode: 'check', reps: '1', label: m[1] + ' min', rest: 0 });
+    if ((m = /->/.test(tok) && /^(.*?)\s+(\d+s(?:\s*->\s*\d+s)+)\s*$/i.exec(tok))) return mkEx({ id: id, name: cap(m[1]), cat: cat, mode: 'check', reps: '1', label: m[2].replace(/\s*->\s*/g, ' → '), rest: 0 });
+    if ((m = /^(.*?)\s+(\d+x\d+(?:-\d+)?)\s*(.*)$/i.exec(tok))) {
+      ex = mkEx({ id: id, name: cap(m[1]), cat: cat, reps: m[2], rest: 20 });
+      if (m[3]) { ex.note = cap(m[3]); }
+      return ex;
     }
-    if (st.type === 'superset') return buildGroup(st, wb, id);
-    var pr = pick(st.progression, wb) || {};
-    return { kind: 'ex', ex: mkEx({ id: id, name: st.name, cat: st.type, reps: pr.reps, sets: pr.sets, note: pr.note,
-                                    rest: E.parseRest(st.restBetweenSets), restAfter: E.parseRest(st.restAfter) }) };
-  }
-  function buildSpecItems(dayKey, wb, ctx) {
-    return B1[dayKey].steps.map(function (st, i) { return stepToItem(st, wb, ctx, i); });
-  }
-  function mcgill(x, raw, id) {
-    var rest = E.parseRest(x.rest);
-    var p = E.parseTarget(raw);
-    if (p.sets && p.lo != null) return mkEx({ id: id, name: x.name, cat: 'core', reps: raw, rest: rest });
-    var n = /^(\d+)/.exec(raw);
-    var par = /^(.*?)\s*\((.*)\)\s*$/.exec(raw);
-    return mkEx({ id: id, name: x.name, cat: 'core', mode: 'check', reps: '1', sets: n ? +n[1] : 1,
-                  label: par ? par[1] : raw, note: par ? par[2].replace(/->/g, '→') : '', rest: rest });
+    if ((m = /^(.*?)\s+(\d+(?:-\d+)?)\s*s$/i.exec(tok))) {
+      ex = mkEx({ id: id, name: cap(m[1]), cat: cat, reps: m[2] + 's/side', rest: 20 });
+      return ex;
+    }
+    name = cap(tok);
+    return mkEx({ id: id, name: name, cat: cat, mode: 'check', reps: '1', label: '', rest: 0 });
   }
   function buildDay4(wb, ctx) {
     var items = [], idx = 0;
-    B1.day4.sections.forEach(function (sec) {
-      items.push({ kind: 'section', title: sec.name });
-      if (sec.exercises) {
-        sec.exercises.forEach(function (x) {
-          items.push({ kind: 'ex', ex: mcgill(x, pick(x.progression, wb) || '', ctx.wid + '-' + (idx++)) });
-        });
+    B1.day4.forEach(function (line) {
+      var h = headOf(line), title, toks, tm, pm;
+      if (h.head) {
+        tm = /^(.*?)\s*\((\d+\s*m)\)\s*$/.exec(h.head);
+        title = tm ? tm[1] + ' (' + fmtMin(tm[2]) + ')' : h.head;
+        toks = splitItems(h.body);
       } else {
-        splitDetails(sec.details).forEach(function (tk) {
-          items.push({ kind: 'ex', ex: tokenToEx(tk, ctx.wid + '-' + (idx++), 'mobility') });
-        });
+        pm = /^(.*?)\s*\((.*)\)\s*$/.exec(h.body);
+        title = pm ? pm[1] : h.body; toks = pm ? splitDepth0(pm[2], RE.comma) : [];
       }
+      var cat = /McGill|Armor/i.test(title) ? 'core' : 'mobility';
+      items.push({ kind: 'section', title: title });
+      toks.forEach(function (tk) { items.push({ kind: 'ex', ex: looseEx(tk, ctx.wid + '-' + (idx++), cat) }); });
     });
     return items;
   }
 
   /* -------------------------------------------------------------- Day 6 speed */
+  // The program gives the distances, the effort range and the rest; how many sprints is not in it. The counts below
+  // (4, 5, 6, then 3 in the deload week) are carried over from the earlier version of the program.
+  var SPRINT_N = [4, 5, 6, 3];
+  function sprintSpec() {
+    var line = B1.day6.filter(function (l) { return /Hill Sprints/i.test(l); })[0] || '';
+    var m = /Flat\s+(\d+(?:-\d+)?)\s*m\s*@\s*(\d+)\s*-\s*(\d+)\s*%\s*vs\s*Steep Hill\s+(\d+(?:-\d+)?)\s*m\b.*?(\d+(?:-\d+)?)\s*s(?:ec)?\b/i.exec(line) || [];
+    var lo = +m[2] || 90, hi = +m[3] || 95;
+    return { fd: (m[1] || '15-20') + 'm', hd: (m[4] || '10-15') + 'm', lo: lo, hi: hi, rest: E.parseRest((m[5] || '90-120') + ' sec') };
+  }
+  // derived tables for Blocks 2 and 3 come from their rules (20-30 m flat and 15 m hill drives; 30 m flat, flying 20s and 20 m steep hills)
   var SPRINT = {
     b2: {
       flat: { n: [5, 6, 6, 3], eff: ['92%', '95%', '95%', '80%'], dist: ['20-30m', '20-30m', '20-30m', '20m, light'], rest: '90-120 sec' },
@@ -1905,40 +1509,49 @@ a.btn.done { color: var(--done); }
       hill: { n: [4, 5, 4, 2], dist: ['20m steep hill', '20m steep hill', '20m steep hill', '20m steep hill, light'], rest: '2-3 mins' }
     }
   };
-  function sprintItems(week, b, ctx, nextId) {
-    var flat = week % 2 === 1, items = [], label, n, rest, name = flat ? 'Flat sprint' : 'Hill sprint';
-    if (b.derived) {
-      var t = SPRINT[b.phase][flat ? 'flat' : 'hill'], i = b.wb - 1;
-      n = t.n[i]; rest = E.parseRest(t.rest);
-      label = flat ? t.eff[i] + ' effort, ' + t.dist[i] : t.dist[i] + ', max effort';
-      items.push({ kind: 'section', title: flat ? 'Max-velocity sprints (flat)' : 'Hill sprints' });
-      items.push({ kind: 'ex', ex: mkEx({ id: nextId(), name: name, cat: 'sprint', mode: 'result', reps: '1', sets: n, label: label, rest: rest }) });
-      if (flat && t.fly) {
-        items.push({ kind: 'ex', ex: mkEx({ id: nextId(), name: 'Flying 20', cat: 'sprint', mode: 'result', reps: '1', sets: t.fly[i],
-                                            label: '20m fly after a 20-30m build-up', rest: rest }) });
-      }
+  function sprintItems(week, b, nextId) {
+    var flatWeek = week % 2 === 1, items = [], label, n, rest, name = flatWeek ? 'Flat sprint' : 'Hill sprint', i = b.wb - 1;
+    var t;
+    if (b.phase === 'b2' || b.phase === 'b3') {
+      t = SPRINT[b.phase][flatWeek ? 'flat' : 'hill']; n = t.n[i]; rest = E.parseRest(t.rest);
+      label = flatWeek ? t.eff[i] + ' effort, ' + t.dist[i] : t.dist[i] + (i === 3 ? '' : ', max effort');
     } else {
-      var src = flat ? B1.day6.steps[3].flatSprints : B1.day6.steps[3].hillSprints;
-      var pr = pick(src.progression, b.wb);
-      n = pr.sprints; rest = E.parseRest(src.rest);
-      label = flat ? pr.effort + ' effort, ' + pr.dist : pr.dist + ', max effort';
-      items.push({ kind: 'section', title: flat ? 'Max-velocity sprints (flat)' : 'Hill sprints' });
-      items.push({ kind: 'ex', ex: mkEx({ id: nextId(), name: name, cat: 'sprint', mode: 'result', reps: '1', sets: n, label: label, rest: rest }) });
+      var sp = sprintSpec(), mid = Math.floor((sp.lo + sp.hi) / 2);
+      n = SPRINT_N[i]; rest = sp.rest;
+      label = flatWeek ? [sp.lo + '%', mid + '%', sp.hi + '%', '80%'][i] + ' effort, ' + (i === 3 ? '15m, light' : sp.fd)
+                       : sp.hd + ' steep, ' + (i === 3 ? 'light' : 'max effort');
+    }
+    items.push({ kind: 'section', title: flatWeek ? 'Max-velocity sprints (flat)' : 'Hill sprints' });
+    items.push({ kind: 'ex', ex: mkEx({ id: nextId(), name: name, cat: 'sprint', mode: 'result', reps: '1', sets: n, label: label, rest: rest }) });
+    if (b.phase === 'b3' && flatWeek && t.fly) {
+      items.push({ kind: 'ex', ex: mkEx({ id: nextId(), name: 'Flying 20', cat: 'sprint', mode: 'result', reps: '1', sets: t.fly[i],
+                                          label: '20m fly after a 20-30m build-up', rest: rest }) });
     }
     return items;
   }
   function buildDay6(week, b, ctx) {
-    var d = B1.day6, items = [], idx = 0, wbBase = b.derived ? (b.deload ? 4 : 3) : b.wb;
+    var items = [], idx = 0, wbBase = (b.phase === 'b2' || b.phase === 'b3') ? (b.deload ? 4 : 3) : b.wb;
     function nextId() { return ctx.wid + '-' + (idx++); }
-    var s0 = d.steps[0], lm = /^(\d+\s*mins?)/i.exec(s0.details || '');
-    items.push({ kind: 'ex', ex: mkEx({ id: nextId(), name: s0.name, cat: 'warmup', mode: 'check', reps: '1', label: lm ? lm[1] : '', info: s0.details, rest: 60 }) });
-    items.push({ kind: 'section', title: d.steps[1].name });
-    splitDetails(d.steps[1].details).forEach(function (tk) { items.push({ kind: 'ex', ex: tokenToEx(tk, nextId(), 'drill') }); });
-    items.push({ kind: 'section', title: d.steps[2].name });
-    d.steps[2].exercises.forEach(function (x) {
-      items.push({ kind: 'ex', ex: mkEx({ id: nextId(), name: x.name, cat: 'drill', reps: pick(x.progression, wbBase), rest: E.parseRest(x.rest) }) });
+    var lines = B1.day6, h;
+    // 1. warm-up + drills to prime the hips
+    splitDepth0(lines[0], RE.plus).forEach(function (tk) {
+      var t = parseToken(tk);
+      if (/warm-?up/i.test(t.name)) items.push({ kind: 'ex', ex: mkEx({ id: nextId(), name: t.name, cat: 'warmup', mode: 'check', reps: '1', label: fmtMin(t.inner), rest: 60 }) });
+      else items.push({ kind: 'ex', ex: mkEx({ id: nextId(), name: cap(t.name), cat: 'drill', mode: 'check', reps: '1', label: '', rest: 0 }) });
     });
-    return items.concat(sprintItems(week, b, ctx, nextId));
+    // 2. elastic drills
+    h = headOf(lines[1]);
+    items.push({ kind: 'section', title: h.head || 'Elastic Drills' });
+    splitItems(h.body).forEach(function (tk) { var ex = exFromToken(tk, wbBase, { id: nextId(), cat: 'drill', rest: 60 }); if (ex) items.push({ kind: 'ex', ex: ex }); });
+    // 3. the sprints
+    items = items.concat(sprintItems(week, b, nextId));
+    // 4. the post-sprint flow
+    var post = lines[3] ? /^(.*?)\s*\((.*)\)\s*$/.exec(lines[3]) : null;
+    if (post) {
+      items.push({ kind: 'section', title: post[1] });
+      splitDepth0(post[2], RE.comma).forEach(function (tk) { items.push({ kind: 'ex', ex: mkEx({ id: nextId(), name: cap(tk), cat: 'mobility', mode: 'check', reps: '1', label: '', rest: 0 }) }); });
+    }
+    return items;
   }
 
   /* --------------------------------------- Blocks 2 and 3 (derived from rules) */
@@ -1953,13 +1566,13 @@ a.btn.done { color: var(--done); }
     day5: { iso: 'Overcoming iso RDL pull vs pins', b2: { name: 'Broad Jump (stick landing)', suffix: '' }, b3: { name: 'Max-distance single-leg bound', suffix: '/leg' } }
   };
   function setTarget(ex, reps, sets, note) {
-    ex.lo = ex.hi = ex.target = reps; ex.sets = sets;
+    ex.lo = ex.hi = ex.target = reps; ex.sets = sets; ex.kg = null;     // from Block 2 on the weight is a percent of your 1RM, not a fixed load
     ex.label = E.fmtTarget({ lo: reps, hi: reps, unit: ex.unit, suffix: ex.suffix });
     ex.note = note || '';
   }
   function tuneMain(ex, phase, wb) {
     var T = TUNE[phase], i = wb - 1, dl = wb === 4;
-    if (/nordic/i.test(ex.name)) setTarget(ex, T.nordic[i][1], T.nordic[i][0], dl ? 'Deload' : 'Strict eccentric');
+    if (/nordic/i.test(ex.name)) { ex.suffix = ''; setTarget(ex, T.nordic[i][1], T.nordic[i][0], dl ? 'Deload' : 'Strict eccentric'); }
     else if (ex.liftKey === 'clean') setTarget(ex, T.clean[i], dl ? ex.sets : (T.cleanSets ? T.cleanSets[i] : ex.sets), dl ? 'Deload' : '');
     else if (ex.liftKey && ex.liftKey !== 'bss') setTarget(ex, T.lift[i], dl ? ex.sets : (T.liftSets ? T.liftSets[i] : ex.sets), dl ? 'Deload' : '');
     else setTarget(ex, T.bss[i], ex.sets, dl ? 'Deload' : '');
@@ -1969,7 +1582,7 @@ a.btn.done { color: var(--done); }
     g.rounds = rounds;
     g.exs.forEach(function (ex) {
       if (ex.liftKey === 'pullup') setTarget(ex, T.pull[i], rounds, wb === 4 ? 'Deload' : '');
-      else if (ex.liftKey) setTarget(ex, T.lift[i], rounds, wb === 4 ? 'Deload' : '');
+      else if (ex.liftKey) setTarget(ex, T.lift[i], rounds, wb === 4 ? 'Deload' : (ex.liftKey === 'bench' && phase === 'b2' ? 'Block target: 27.5–30 kg dumbbells' : ''));
       else ex.sets = rounds;
     });
   }
@@ -1981,7 +1594,7 @@ a.btn.done { color: var(--done); }
              rounds: rounds, restAfter: 120, exs: [iso, jump] };
   }
   function deriveStrength(dayKey, b, ctx) {
-    var base = buildSpecItems(dayKey, b.deload ? 4 : 3, ctx), out = [], placed = false;
+    var base = buildSpecItems(dayKey, b.deload ? 4 : 3, ctx, false), out = [], placed = false;
     base.forEach(function (it) {
       if (it.kind === 'ex' && it.ex.cat === 'plyo') {
         if (!placed) { out.push(contrastGroup(dayKey, b.phase, b.wb, ctx.wid + '-c')); placed = true; }
@@ -1994,6 +1607,30 @@ a.btn.done { color: var(--done); }
     return out;
   }
 
+  /* -------------------------- Block 4: Pre-VAD transition (rucking, 3 km, burnouts) */
+  // The program says "integrate progressive bi-weekly rucking (10-20kg), 3km timed run pacing, and post-lift push-up burnouts".
+  // Where they go is not in it, so the app places them: rucks in weeks 13 and 15 (every other week) on the recovery day, the 3 km
+  // timed run in place of the Day 1 easy run in weeks 14 and 16, and one push-up burnout after each lift in weeks 13 to 15.
+  var RUCK = { 13: '10–15 kg pack, steady walking pace', 15: '15–20 kg pack, steady walking pace' };
+  function block4Extras(w, ctx, b) {
+    var items = [], idx = 0;
+    if (w.day === 4 && RUCK[w.week]) {
+      items.push({ kind: 'section', title: 'Pre-VAD: rucking' });
+      items.push({ kind: 'ex', ex: mkEx({ id: ctx.wid + '-r' + (idx++), name: 'Ruck', cat: 'mobility', mode: 'check', reps: '1', label: RUCK[w.week], note: 'Placement chosen by the app', rest: 0 }) });
+    }
+    if ((w.day === 1 || w.day === 5) && !b.deload) {
+      items.push({ kind: 'section', title: 'Post-lift' });
+      var ex = mkEx({ id: ctx.wid + '-b' + (idx++), name: 'Push-up burnout', cat: 'push', mode: 'reps', reps: '1', label: 'Max reps', note: 'Stop at failure and keep the form. Log the reps you reach', sets: 1, rest: 0 });
+      ex.target = null; ex.lo = ex.hi = null;
+      items.push({ kind: 'ex', ex: ex });
+    }
+    if (w.day === 1 && w.am && (w.week === 14 || w.week === 16)) {
+      w.am.text = '3 km timed run: practise your goal pace and log the time (Log a run). Replaces the easy Zone 2 run this week.';
+      w.am.timed = true;
+    }
+    return items;
+  }
+
   /* ------------------------------------------------------------- the resolver */
   var cache = {};
   function flatExs(w) {
@@ -2004,32 +1641,41 @@ a.btn.done { color: var(--done); }
     });
     return out;
   }
+  function effortOf(day) {
+    var m = /(\d+)\s*-\s*(\d+)\s*%\s*Effort/i.exec(SCHED['day' + day] || '');
+    return m ? m[1] + '–' + m[2] + '% effort' : '';
+  }
+  function focusOf() {
+    var m = /^(.*?)\s*\((.*)\)\s*$/.exec(B1.day2_3 || '');
+    return m ? 'Post-BJJ decompression flow: ' + m[2] + '.' : String(B1.day2_3 || '');
+  }
   function getWorkout(week, day) {
     var key = week * 10 + day;
     if (cache[key]) return cache[key];
-    var b = blockOf(week), dk = 'day' + day, meta = DAY_META[day], spec = B1[dk];
+    var b = blockOf(week), dk = 'day' + day, meta = DAY_META[day];
     var ctx = { week: week, day: day, wid: 'w' + week + 'd' + day };
     var w = {
       week: week, day: day, wid: ctx.wid, block: b.n, blockName: b.name, belt: b.belt, phase: b.phase, wb: b.wb,
-      deload: b.deload, derived: b.derived, assumed: b.assumed, kind: meta.kind, title: spec.title,
+      deload: b.deload, derived: b.derived, assumed: b.assumed, kind: meta.kind, title: SCHED[dk],
       shortTitle: meta.short, am: null, effort: '', focus: '', items: []
     };
     if (day === 1 || day === 5) {
-      w.am = { text: spec.am, minLo: 30, minHi: 45 };
-      w.items = b.derived ? deriveStrength(dk, b, ctx) : buildSpecItems(dk, b.wb, ctx);
+      w.am = { text: 'Easy Zone 2 Run (30-45 mins). Post-run meal within 30-45 min.', minLo: 30, minHi: 45 };
+      if (b.phase === 'b2' || b.phase === 'b3') w.items = deriveStrength(dk, b, ctx);
+      else w.items = buildSpecItems(dk, b.wb, ctx, b.phase === 'b1');     // Block 4: Block 1's wave, loads as percent of 1RM
     } else if (day === 2 || day === 3) {
-      var rules = b.derived ? SPEC.blocks[b.n - 1].rules : null;
-      w.effort = rules ? (day === 2 ? rules.bjjGi : rules.bjjNoGi) : spec.effort;
-      w.focus = spec.focus;
+      w.effort = effortOf(day);
+      w.focus = focusOf();
     } else if (day === 4) {
-      w.items = buildDay4(b.derived ? (b.deload ? 4 : 3) : b.wb, ctx);
+      w.items = buildDay4(b.wb, ctx);
     } else if (day === 6) {
       w.items = buildDay6(week, b, ctx);
     }
+    if (b.phase === 'b4') w.items = w.items.concat(block4Extras(w, ctx, b));
     flatExs(w).forEach(function (ex) {
       if (ex.liftKey) {
         ex.rir = E.rirFor(w.phase, ex.liftKey);
-        ex.pct = w.deload ? E.DELOAD_PCT : E.pctFor(ex.lo, ex.rir);
+        if (ex.kg == null) ex.pct = w.deload ? E.DELOAD_PCT : E.pctFor(ex.lo, ex.rir);
       }
     });
     cache[key] = w;
@@ -2038,14 +1684,25 @@ a.btn.done { color: var(--done); }
 
   /* --------------------------------------------------------------- summaries */
   function pctText(p) { return Math.round(p * 1000) / 10 + '%'; }
+  // the fixed load of a Block 1 exercise in words
+  function fixedText(ex, u, s) {
+    var kg = E.fixedKg(ex.kg, s || { units: u });
+    if (ex.liftKey === 'pullup') return kg > 0 ? '+' + E.fmtW(kg, u) + ' ' + u + ' added to bodyweight' : 'bodyweight';
+    if (ex.liftKey === 'bss' && !(kg > 0)) return 'bodyweight';
+    return E.fmtW(kg, u) + ' ' + u + (ex.liftKey === 'bench' ? ' per dumbbell' : ex.liftKey === 'bss' ? ' in total' : '');
+  }
   // opts: { oneRM(key) -> kg|null, settings }  — adds working weights when 1RMs are known
   function exLine(ex, opts) {
-    if (ex.mode === 'check') return ex.name + (ex.label ? ' (' + ex.label + ')' : '');
-    var s = ex.name + ': ' + ex.sets + ' x ' + ex.label;
-    if (ex.pct) {
+    if (ex.mode === 'check') return ex.sets > 1 && ex.label ? ex.name + ': ' + ex.sets + ' x ' + ex.label : ex.name + (ex.label ? ' (' + ex.label + ')' : '');
+    var s = ex.name + ': ' + ex.sets + ' x ' + ex.label, u = opts && opts.settings ? opts.settings.units || 'kg' : 'kg';
+    var rm = ex.liftKey && opts && opts.oneRM ? opts.oneRM(ex.liftKey) : null;
+    if (ex.kg != null) {
+      s += ' at ' + fixedText(ex, u, opts && opts.settings);
+      var pc = rm && opts.settings ? E.pctOfRM(ex.liftKey, E.fixedKg(ex.kg, opts.settings), rm, E.bodyKg(opts.settings)) : null;
+      if (pc) s += ' (' + pctText(pc) + ' of estimated 1RM)';
+    } else if (ex.pct) {
       s += ' at ' + pctText(ex.pct) + ' of 1RM';
-      var rm = opts && opts.oneRM ? opts.oneRM(ex.liftKey) : null;
-      var kg = rm && opts.settings ? E.workingKg(ex.liftKey, rm, ex.pct, opts.settings) : null, u = opts && opts.settings ? opts.settings.units || 'kg' : 'kg';
+      var kg = rm && opts.settings ? E.workingKg(ex.liftKey, rm, ex.pct, opts.settings) : null;
       if (kg != null) s += ex.liftKey === 'pullup' ? (kg > 0 ? ' (about +' + E.fmtW(kg, u) + ' ' + u + ' added to bodyweight)' : ' (bodyweight is enough)') : ' (about ' + E.fmtW(kg, u) + ' ' + u + ')';
     }
     if (ex.note) s += ' [' + ex.note + ']';
@@ -2077,9 +1734,54 @@ a.btn.done { color: var(--done); }
     return out;
   }
 
+  /* ------------------------------------------- nutrition and sleep protocols */
+  function stripDot(s) { return String(s || '').replace(/\.\s*$/, '').trim(); }
+  // "AM Zone 2 run -> Post-AM meal (...). PM Heavy lift -> Post-PM meal (...)" and "Pre-BJJ meal (15:30-16:30): ... Intra-BJJ: ..."
+  function parseMeals(raw) {
+    var out = [];
+    splitDepth0(raw, RE.sentence).forEach(function (s) {
+      s = stripDot(s);
+      var m = /^(.*?)\s*->\s*(.*?)\s*\((.*)\)\s*$/.exec(s);
+      if (m) { out.push({ label: m[2], when: 'After the ' + m[1], text: m[3] }); return; }
+      m = /^(.*?)\s*(?:\(([^)]*)\))?\s*:\s*(.*)$/.exec(s);
+      if (m && m[1]) { out.push({ label: m[1], when: m[2] ? m[2].replace(/(\d)-(\d)/, '$1–$2') : '', text: m[3] }); return; }
+      out.push({ label: '', when: '', text: s });
+    });
+    return out;
+  }
+  function mealsFor(day) {
+    var key = day === 1 || day === 5 ? 'days1and5' : day === 2 || day === 3 ? 'days2and3' : day === 6 ? 'day6' : '';
+    var raw = key && NUT.timelines ? NUT.timelines[key] : '';
+    return raw ? parseMeals(raw) : [];
+  }
+  function daysIn(text) {
+    var set = {}, re = /Days?\s*(\d)(?:\s*-\s*(\d))?/g, m, d;
+    while ((m = re.exec(String(text || '')))) for (d = +m[1]; d <= +(m[2] || m[1]); d++) set[d] = 1;
+    return set;
+  }
+  // Every day: creatine and water. On BJJ and sprint days: salt in the fluids (the days come from the program text).
+  function baselineFor(day) {
+    var b = NUT.dailyBaseline || {}, out = [], rest = day === 4 || day === 7;
+    if (b.creatine) {
+      var m = /^(.*?)\s*\(\s*(.*?)\s+on training days\s*;\s*(.*?)\s+on rest days\s*\)\s*$/i.exec(b.creatine);
+      out.push({ label: 'Creatine', text: m ? m[1] + ', ' + (rest ? m[3] : m[2]) : b.creatine });
+    }
+    if (b.hydration) out.push({ label: 'Hydration', text: b.hydration.replace(/\s*daily\s*$/i, '') + ' a day' });
+    if (b.electrolytes && daysIn(b.electrolytes)[day]) out.push({ label: 'Electrolytes', text: cap(stripDot(b.electrolytes).replace(/^On BJJ \(Days? [\d-]+\) and Sprint days \(Days? [\d-]+\),\s*/i, '')) });
+    return out;
+  }
+  function fuelFor(day) { return { baseline: baselineFor(day), meals: mealsFor(day) }; }
+  function sleepBlueprint() {
+    return (NUT.sleepBlueprint || []).map(function (s) {
+      var m = /^(.*?)\s*(?:\(([^)]*)\))?\s*:\s*(.*)$/.exec(s);
+      return m ? { title: m[1], when: m[2] || '', text: m[3] } : { title: '', when: '', text: s };
+    });
+  }
+
   HA.program = {
-    BLOCKS: BLOCKS, LIFT_KEYS: E.LIFT_KEYS, DAY_META: DAY_META, LIFT_LABEL: LIFT_LABEL, LIFT_BY_NAME: LIFT_BY_NAME,
-    blockOf: blockOf, getWorkout: getWorkout, flatExs: flatExs, summarize: summarize, allExerciseNames: allExerciseNames
+    BLOCKS: BLOCKS, LIFT_KEYS: E.LIFT_KEYS, DAY_META: DAY_META, LIFT_LABEL: LIFT_LABEL, liftKeyOf: liftKeyOf,
+    blockOf: blockOf, getWorkout: getWorkout, flatExs: flatExs, summarize: summarize, allExerciseNames: allExerciseNames,
+    fuel: fuelFor, sleep: sleepBlueprint, programName: SPEC.programName, profile: SPEC.targetProfile
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
@@ -2104,14 +1806,14 @@ a.btn.done { color: var(--done); }
     return out;
   }
 
-  // Pre-fill one exercise: % of the current 1RM for the six tracked lifts (pull-ups: the weight to ADD to
-  // bodyweight), "last time (+1 step)" for other weighted work, and the written rep/second target for the rest.
+  // Pre-fill one exercise: the kilograms written in the program (Block 1), otherwise % of the current 1RM for the six
+  // tracked lifts (pull-ups: the weight to ADD to bodyweight), "last time (+1 step)" for other weighted work, and the written rep/second target for the rest.
   function mkSessionEx(ex, state, todayISO) {
     var s = state.settings, incKg = E.toKg(E.incOf(s), s.units);
     var e = clone(ex);
     e.skipped = false; e.sets = []; e.modified = false;
     var rm = e.liftKey ? E.oneRMFor(state, e.liftKey, todayISO) : null;
-    var base = rm && e.pct ? E.workingKg(e.liftKey, rm.kg, e.pct, s) : null;
+    var base = e.kg != null ? E.fixedKg(e.kg, s) : (rm && e.pct ? E.workingKg(e.liftKey, rm.kg, e.pct, s) : null);   // a fixed kg from the program wins over a percent
     var suggest = (e.mode === 'weightReps' && base == null) ? E.suggestFromLast(E.prevSets(state, e.name), e, incKg) : null;
     e.oneRM = rm ? rm.kg : null;
     e.targetKg = base;
@@ -2346,7 +2048,7 @@ a.btn.done { color: var(--done); }
         units: 'kg', increment: null, startDate: E.nextMondayISO(today),
         age: null, rhr: null, mhr: null, mhrFormula: 'classic', hrMethod: 'karvonen', zoneLo: 60, zoneHi: 70,
         autoRest: true, sound: true, vibrate: true, notify: true, wakeLock: true, includeRest: true,
-        geminiModel: 'gemini-2.5-flash', paceUnit: 'km', race: null, hrCue: true, gcalClientId: '', timesAt: 0,
+        geminiModel: 'gemini-3.8-flash', bodyKg: 70, paceUnit: 'km', race: null, hrCue: true, gcalClientId: '', timesAt: 0,
         times: { am: '07:00', amDur: 45, pm: '17:30', pmDur: 90, recovery: '18:00', recDur: 60, sprint: '10:00', sprDur: 75, bjjStart: '19:00', bjjEnd: '21:00' }
       },
       baselines: {}, logs: [], marks: {}, overrides: {}, active: null, chat: [],
@@ -2371,6 +2073,8 @@ a.btn.done { color: var(--done); }
     if (!isObj(s.sched)) s.sched = {};
     if (!isObj(s.gcal)) s.gcal = defaults().gcal;
     if (!isObj(s.gcal.snap)) s.gcal.snap = {};
+    // Ducky runs on gemini-3.8-flash. A saved older Gemini model (1.5, 2.x) is moved up to it; a model you typed yourself is left alone.
+    if (!s.settings.geminiModel || /^gemini-(1\.\d+|2\.\d+)-(flash|pro)/i.test(String(s.settings.geminiModel))) s.settings.geminiModel = 'gemini-3.8-flash';
     if (!/^\d{4}-\d{2}-\d{2}$/.test(s.settings.startDate || '')) s.settings.startDate = E.nextMondayISO(E.isoDate(new Date()));
     return s;
   }
@@ -3340,8 +3044,10 @@ a.btn.done { color: var(--done); }
   var HA = root.HA = root.HA || {};
   var E = HA.engine, P = HA.program;
 
-  var DEFAULT_MODEL = 'gemini-2.5-flash';
-  var FALLBACKS = ['gemini-flash-latest', 'gemini-2.5-flash'];
+  // Ducky's model. Older Flash versions (1.5, 2.x) are deliberately not used anywhere. The alias below is only tried if Google says
+  // the model name above is not found for the key (a 404), so a missing model does not leave you without a coach.
+  var DEFAULT_MODEL = 'gemini-3.8-flash';
+  var FALLBACKS = ['gemini-flash-latest'];
   var ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
   function esc(s) {
@@ -3349,9 +3055,9 @@ a.btn.done { color: var(--done); }
   }
 
   /* --------------------------------------------------------------- YouTube */
-  // "Pallof Press (or DB Drag Plank)" -> "pallof press"; "Power Clean or High Pull" -> "power clean"
+  // "Pallof Press (or DB Drag Plank)" -> "pallof press"; "Power Clean / High Pull" -> "power clean"
   function searchName(name) {
-    return String(name).replace(/\(.*?\)/g, ' ').split(/\s+or\s+/i)[0].replace(/\s+/g, ' ').trim().toLowerCase();
+    return String(name).replace(/\(.*?\)/g, ' ').split(/\s+(?:or|\/)\s+/i)[0].replace(/\s+/g, ' ').trim().toLowerCase();
   }
   function youtubeLink(name) {
     return 'https://www.youtube.com/results?search_query=' + encodeURIComponent('how to do ' + searchName(name)).replace(/%20/g, '+');
@@ -3419,6 +3125,39 @@ a.btn.done { color: var(--done); }
     return { text: clean.replace(/\n{3,}/g, '\n\n').trim(), mods: mods };
   }
 
+  /* ------------------------------------------------- what Ducky knows about the program */
+  // One line per tracked lift: what every one of the 16 weeks asks for (sets x reps and the kilograms or percent of 1RM).
+  function liftTable() {
+    return E.LIFT_KEYS.map(function (k) {
+      var cells = [];
+      for (var w = 1; w <= 16; w++) {
+        var ex = P.flatExs(P.getWorkout(w, 1)).concat(P.flatExs(P.getWorkout(w, 5))).filter(function (e) { return e.liftKey === k; })[0];
+        if (!ex) continue;
+        var load = ex.kg != null ? (ex.kg > 0 ? (k === 'pullup' ? 'BW+' : '') + E.fmtNum(ex.kg) + 'kg' : 'BW') : Math.round(ex.pct * 1000) / 10 + '%';
+        cells.push('W' + w + ' ' + ex.sets + 'x' + ex.lo + ' @' + load);
+      }
+      return '- ' + P.LIFT_LABEL[k] + ': ' + cells.join(' | ');
+    }).join('\n');
+  }
+  function fuelText(day) {
+    var f = P.fuel(day), out = [];
+    f.meals.forEach(function (m) { out.push('- ' + (m.label ? m.label + (m.when ? ' (' + m.when + ')' : '') + ': ' : '') + m.text); });
+    f.baseline.forEach(function (b) { out.push('- ' + b.label + ': ' + b.text); });
+    return out.join('\n');
+  }
+  function manualText() {
+    var NUT = HA.SPEC.nutritionProtocols || {}, out = [];
+    out.push('Nutrition, all days: ' + [NUT.dailyBaseline && NUT.dailyBaseline.creatine && 'creatine ' + NUT.dailyBaseline.creatine, NUT.dailyBaseline && NUT.dailyBaseline.hydration && 'water ' + NUT.dailyBaseline.hydration, NUT.dailyBaseline && NUT.dailyBaseline.electrolytes].filter(Boolean).join('; '));
+    if (NUT.timelines) {
+      out.push('Meal timing, Days 1 and 5: ' + NUT.timelines.days1and5);
+      out.push('Meal timing, Days 2 and 3 (BJJ): ' + NUT.timelines.days2and3);
+      out.push('Meal timing, Day 6 (sprints): ' + NUT.timelines.day6);
+    }
+    out.push('Sleep blueprint (after evening BJJ):');
+    (NUT.sleepBlueprint || []).forEach(function (x) { out.push('  - ' + x); });
+    return out.join('\n');
+  }
+
   /* ----------------------------------------------------------- system prompt */
   function systemPrompt(S, view, todayISO) {
     var st = S.settings, units = st.units || 'kg';
@@ -3437,13 +3176,15 @@ a.btn.done { color: var(--done); }
       if (idx < E.TOTAL_DAYS) { var n = P.getWorkout(Math.floor(idx / 7) + 1, (idx % 7) + 1); next.push('Week ' + n.week + ' Day ' + n.day + ': ' + n.title); }
     }
     return [
-      'You are Ducky, a calm, practical rubber-duck coach inside the "Hybrid Athlete Tracker" app. The athlete trains strength, power, sprinting, Zone 2 running and Brazilian jiu-jitsu.',
+      'You are Ducky, a calm, practical rubber-duck coach inside the "Hybrid Athlete Tracker" app. The athlete follows "' + P.programName + '" for this profile: ' + P.profile + '. They train strength, power, sprinting, Zone 2 running and Brazilian jiu-jitsu, and they prepare for tactical selection.',
       '',
       'RULES',
       '- Answer only what the athlete asked. Never volunteer extra coaching, and never interrupt a workout. Keep replies short: plain sentences or a few bullets, usually under 150 words.',
-      '- You know their exact program (JSON below). Weeks 13-16 are not in the JSON: they repeat Block 1 at recalibrated weights.',
-      '- Weights are in ' + units + '. Intensities are percentages of the estimated 1RMs listed below.',
-      '- Pull-ups are weighted: the 1RM and the percentage are about the total load (bodyweight plus added weight), and the weight in the plan is the ADDED weight. The Bulgarian split squat weight is the total weight held, with reps counted per leg.',
+      '- You know their exact 16-week program, nutrition protocols and sleep and recovery protocols (below). Answer about food, hydration, recovery and sleep from those protocols first, and say so when you add something that is not in them.',
+      '- Block 1 (weeks 1-4) uses the fixed kilograms written in the program. Blocks 2 and 3 only have rules in the program, so the app builds them: heavy reps at a percent of the estimated 1RM, contrast complexes, deload in the fourth week. Block 4 (weeks 13-16) restarts the Block 1 wave at percentages of the recalculated 1RMs and adds rucking, a 3 km timed run and push-up burnouts. Sprint counts, rest times and where the Block 4 add-ons go are the app\'s own choices, not the manual\'s.',
+      '- The athlete sees weights in ' + units + ' (the load table below is in kilograms, as written in the program). 1RMs are estimated with the Epley formula: weight x (1 + reps / 30), counting reps left in the tank. Intensities from Block 2 on are percentages of the estimated 1RMs listed below.',
+      '- Pull-ups are weighted: the 1RM and the percentage are about the total load (bodyweight plus added weight), and the weight in the plan is the ADDED weight. The Bulgarian split squat (ATG) weight is the total weight held, with reps counted per leg. DB bench weights are per dumbbell.',
+      '- Zone 2 heart rate comes from the Karvonen formula: resting heart rate + (max heart rate - resting heart rate) x intensity, using the numbers in ATHLETE below.',
       '- If they are fatigued, sore or hurt, adapt volume and intensity conservatively. Sharp, worsening or lingering pain, numbness, or a possible serious injury: tell them to stop that movement and see a clinician. You are not a doctor.',
       '',
       'WHEN ASKED TO MODIFY A WORKOUT',
@@ -3461,11 +3202,20 @@ a.btn.done { color: var(--done); }
       '- ' + lifts,
       z ? '- ' + z : '- Zone 2 heart rate not configured.',
       '',
+      "TODAY'S FUEL (Day " + wk.day + ')',
+      fuelText(wk.day) || 'No meal timing for this day beyond the daily baseline.',
+      '',
       "TODAY'S WORKOUT (Week " + wk.week + ' Day ' + wk.day + ': ' + wk.title + ')',
       P.summarize(wk, opts).join('\n') || 'No exercises (rest or BJJ day).',
       '',
       'COMING UP',
       next.join('\n') || 'End of the program.',
+      '',
+      'LOADS FOR ALL 16 WEEKS (sets x reps @ kilograms in Block 1, percent of estimated 1RM after; BW = bodyweight)',
+      liftTable(),
+      '',
+      'NUTRITION AND RECOVERY MANUAL',
+      manualText(),
       '',
       'FULL PROGRAM SPEC (JSON)',
       JSON.stringify(HA.SPEC)
@@ -3504,7 +3254,7 @@ a.btn.done { color: var(--done); }
     var body = JSON.stringify({
       systemInstruction: { parts: [{ text: o.system }] },
       contents: (o.history || []).concat([{ role: 'user', parts: [{ text: o.user }] }]),
-      generationConfig: { temperature: 0.5, maxOutputTokens: 4096 }
+      generationConfig: { temperature: 0.5, maxOutputTokens: 8192 }
     });
     var lastErr = null;
     for (var i = 0; i < models.length; i++) {
@@ -3530,9 +3280,9 @@ a.btn.done { color: var(--done); }
   }
 
   HA.ai = {
-    DEFAULT_MODEL: DEFAULT_MODEL, MODELS: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest'],
+    DEFAULT_MODEL: DEFAULT_MODEL, MODELS: ['gemini-3.8-flash', 'gemini-flash-latest'],
     esc: esc, searchName: searchName, youtubeLink: youtubeLink, detectTutorial: detectTutorial, md: md, parseReply: parseReply,
-    systemPrompt: systemPrompt, toHistory: toHistory, ask: ask, friendly: friendly
+    FALLBACKS: FALLBACKS, liftTable: liftTable, systemPrompt: systemPrompt, toHistory: toHistory, ask: ask, friendly: friendly
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
@@ -3633,7 +3383,7 @@ a.btn.done { color: var(--done); }
   function fmtInt(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
   function pct(p) { return Math.round(p * 1000) / 10 + '%'; }
   function belt(name) { return '<span class="belt belt-' + name + '" role="img" aria-label="' + BELT[name] + '"></span>'; }
-  function header(title, sub) { return '<header class="page-head"><h1>' + esc(title) + '</h1>' + (sub ? '<p>' + esc(sub) + '</p>' : '') + '</header>'; }
+  function header(title, sub, cls) { return '<header class="page-head' + (cls ? ' ' + cls : '') + '"><h1>' + esc(title) + '</h1>' + (sub ? '<p>' + esc(sub) + '</p>' : '') + '</header>'; }
   function dayDone(S, wk) {
     var logged = S.logs.some(function (l) { return l.wid === wk.wid; });
     if (wk.items.length) return logged;
@@ -3644,14 +3394,23 @@ a.btn.done { color: var(--done); }
     return m ? m[1] + '–' + m[2] + '%' : '';
   }
   function liftRM(c, key) { return key ? E.oneRMFor(c.S, key, c.today) : null; }
+  // the weight to lift: the kilograms written in the program (Block 1), else a percent of the current 1RM
   function workingWeight(c, ex) {
+    if (ex.kg != null) return E.fixedKg(ex.kg, c.S.settings);
     var rm = liftRM(c, ex.liftKey);
     return rm && ex.pct ? E.workingKg(ex.liftKey, rm.kg, ex.pct, c.S.settings) : null;
+  }
+  // a fixed program weight in words ("22.5 kg", "+2.5 kg", "bodyweight")
+  function fixedTxt(c, ex) {
+    var u = units(c);
+    if (ex.kg > 0) return (ex.liftKey === 'pullup' ? '+' : '') + E.fmtW(E.fixedKg(ex.kg, c.S.settings), u) + ' ' + u + (ex.liftKey === 'pullup' ? ' added' : ex.liftKey === 'bench' ? ' each' : ex.liftKey === 'bss' ? ' in total' : '');
+    return 'bodyweight';
   }
   // how a working weight reads: pull-ups show the weight ADDED to bodyweight ("+5 kg", or "BW")
   function wTxt(c, key, kg) {
     var u = units(c);
     if (key === 'pullup') return kg > 0 ? '+' + E.fmtW(kg, u) + ' ' + u : 'BW';
+    if (key === 'bss' && !(kg > 0)) return 'BW';
     return E.fmtW(kg, u) + ' ' + u;
   }
   function totalNote(key) { return key === 'pullup' ? ' total' : ''; }
@@ -3660,13 +3419,21 @@ a.btn.done { color: var(--done); }
   /* --------------------------------------------------------------- day detail */
   function pRow(c, ex) {
     var meta = ex.mode === 'check' ? ex.label : ex.sets + ' × ' + ex.label;
-    var w = '';
-    if (ex.pct) {
-      var kg = workingWeight(c, ex);
+    var w = '', share = '', kg, rm;
+    if (ex.kg != null) {                                              // Block 1: the program gives the kilograms; the share of 1RM is shown when a 1RM is known
+      var fk = E.fixedKg(ex.kg, c.S.settings);
+      w = wTxt(c, ex.liftKey, fk);
+      rm = liftRM(c, ex.liftKey);
+      var f = rm ? E.pctOfRM(ex.liftKey, fk, rm.kg, E.bodyKg(c.S.settings)) : null;
+      if (f) share = pct(f);
+    } else if (ex.pct) {
+      kg = workingWeight(c, ex);
       w = kg != null ? wTxt(c, ex.liftKey, kg) : pct(ex.pct);
+      if (kg != null) share = pct(ex.pct);
     }
     return '<li class="p-row"><span class="p-name">' + esc(ex.name) + (ex.note ? ' <em>' + esc(ex.note) + '</em>' : '') + '</span>' +
-           (meta ? '<span class="p-meta">' + esc(meta) + '</span>' : '') + (w ? '<span class="p-w">' + esc(w) + '</span>' : '') + '</li>';
+           (meta ? '<span class="p-meta">' + esc(meta) + '</span>' : '') +
+           (w ? '<span class="p-w">' + esc(w) + (share ? '<small>' + esc(share) + ' of 1RM</small>' : '') + '</span>' : '') + '</li>';
   }
   function previewList(c, wk) {
     var h = '<ul class="plist">';
@@ -3674,7 +3441,7 @@ a.btn.done { color: var(--done); }
       if (it.kind === 'section') h += '<li class="p-sec">' + esc(it.title) + '</li>';
       else if (it.kind === 'ex') h += pRow(c, it.ex);
       else {
-        h += '<li class="p-group g-' + it.variant + '"><div class="p-ghead"><b>' + esc(it.label) + '</b><span>' + esc(it.sub) + ', ' + it.rounds + ' rounds</span></div><ul>' +
+        h += '<li class="p-group g-' + it.variant + '"><div class="p-ghead"><b>' + esc(it.label) + '</b><span>' + (it.sub ? esc(it.sub) + ', ' : '') + it.rounds + ' rounds</span></div><ul>' +
              it.exs.map(function (e) { return pRow(c, e); }).join('') + '</ul></li>';
       }
     });
@@ -3694,10 +3461,10 @@ a.btn.done { color: var(--done); }
     var h = '<div class="card run"><div class="run-main">';
     if (z) {
       h += '<div class="run-hr"><span class="run-num">' + z.lo + '<i>–</i>' + z.hi + '</span><span class="run-unit">bpm</span></div>' +
-           '<div class="run-txt"><h3>Morning Zone 2 run</h3><p>' + esc(wk.am.minLo + '–' + wk.am.minHi) + ' min, easy and conversational. Fuel after.</p>' +
+           '<div class="run-txt"><h3>' + (wk.am.timed ? '3 km timed run' : 'Morning Zone 2 run') + '</h3><p>' + (wk.am.timed ? 'Practise your goal pace. Log the time. Warm up well and keep the heart rate under control early.' : esc(wk.am.minLo + '–' + wk.am.minHi) + ' min, easy and conversational. Fuel after.') + '</p>' +
            '<small>' + (z.method === 'karvonen' ? 'Karvonen, ' + z.loPct + '–' + z.hiPct + '% of heart-rate reserve' : z.loPct + '–' + z.hiPct + '% of max heart rate') + ', max ' + z.mhr + '</small>' + paceLine(c) + '</div>';
     } else {
-      h += '<div class="run-txt"><h3>Morning Zone 2 run</h3><p>' + esc(wk.am.text) + '</p>' +
+      h += '<div class="run-txt"><h3>' + (wk.am.timed ? '3 km timed run' : 'Morning Zone 2 run') + '</h3><p>' + esc(wk.am.text) + '</p>' +
            '<button class="link" data-act="goto-settings" data-focus="hr">Add your age to see your target heart rate</button></div>';
     }
     h += '</div><div class="run-tools"><button class="btn btn-ghost" data-act="live-open">' + ICON.pulse + 'Live heart rate</button><button class="btn btn-ghost" data-act="run-log">Log a run</button></div>' +
@@ -3719,7 +3486,7 @@ a.btn.done { color: var(--done); }
     var logs = c.S.logs.filter(function (l) { return l.wid === wk.wid; });
     var h = '<div class="card wcard"><div class="wcard-head"><h3>' + (wk.am ? 'Evening session' : 'Session') + '</h3><span>' + (n ? n + ' exercises, ' + sets + ' sets' : 'Checklist') + '</span></div>';
     if (wk.deload) h += '<p class="deload-note"><b>Deload week.</b> Weights drop to ' + pct(E.DELOAD_PCT) + ' of 1RM and volume is cut.</p>';
-    if (missing.length) h += '<div class="hint"><span>Enter your 1RMs and weights fill in for you.</span><button class="link" data-act="goto-lifts">Set 1RMs</button></div>';
+    if (missing.length) h += '<div class="hint"><span>' + (wk.phase === 'b1' ? 'Add your 1RMs to see each weight as a share of your 1RM.' : 'Enter your 1RMs and weights fill in for you.') + '</span><button class="link" data-act="goto-lifts">Set 1RMs</button></div>';
     h += previewList(c, wk);
     if (logs.length) {
       var l = logs[logs.length - 1], cnt = 0; l.entries.forEach(function (e) { cnt += e.sets.length; });
@@ -3797,6 +3564,28 @@ a.btn.done { color: var(--done); }
     h += '<p class="muted cal-file">Want all 16 weeks at once? <button class="link" data-act="cal-download">Download the calendar file (.ics)</button> and import it.</p>';
     return sheet('Add to Google Calendar', h);
   }
+  /* ---------------------------------------------------- fuel and sleep (from the program's nutrition manual) */
+  function fuelCard(c, wk) {
+    var f = P.fuel(wk.day);
+    if (!f.baseline.length && !f.meals.length) return '';
+    var quick = f.baseline.filter(function (b) { return b.label === 'Creatine' || b.label === 'Hydration'; }).map(function (b) { return b.text; }).join('. ');
+    var h = '<details class="card fuel"><summary><span class="fuel-t">Fuel for today</span><span class="fuel-s">' + esc(quick || 'Daily baseline') + '</span>' + ICON.down + '</summary><div class="fuel-body">';
+    if (f.meals.length) {
+      h += '<ol class="meals">' + f.meals.map(function (m) {
+        return '<li>' + (m.label ? '<b>' + esc(m.label) + '</b>' : '') + (m.when ? '<small>' + esc(m.when) + '</small>' : '') + '<p>' + esc(m.text) + '</p></li>';
+      }).join('') + '</ol>';
+    }
+    h += '<h4>Every day</h4><ul class="base">' + f.baseline.map(function (b) { return '<li><b>' + esc(b.label) + '</b><span>' + esc(b.text) + '</span></li>'; }).join('') + '</ul></div></details>';
+    return h;
+  }
+  function sleepCard(c, wk, open) {
+    var sl = P.sleep();
+    if (!sl.length) return '';
+    return '<details class="card sleep"' + (open ? ' open' : '') + '><summary><span class="fuel-t">Sleep blueprint</span><span class="fuel-s">Wind down after hard sessions</span>' + ICON.down + '</summary>' +
+           '<ol class="sleeps">' + sl.map(function (x) {
+             return '<li>' + (x.title ? '<b>' + esc(x.title) + '</b>' : '') + (x.when ? '<small>' + esc(x.when) + '</small>' : '') + '<p>' + esc(x.text) + '</p></li>';
+           }).join('') + '</ol></details>';
+  }
   function dayBody(c, wk, iso) {
     var h = '<section class="day"><div class="day-head"><h2 class="day-title">' + esc(wk.shortTitle) + '</h2><p class="day-date">' + longDate(iso) + ', day ' + wk.day + '</p></div>';
     h += sessionList(c, wk, iso);
@@ -3804,6 +3593,8 @@ a.btn.done { color: var(--done); }
     if (wk.kind === 'bjj') h += bjjCard(c, wk);
     else if (wk.kind === 'rest') h += restCard(c, wk);
     else h += workoutCard(c, wk);
+    h += fuelCard(c, wk);
+    if (wk.kind === 'bjj') h += sleepCard(c, wk, false);
     return h + '</section>';
   }
 
@@ -3856,7 +3647,8 @@ a.btn.done { color: var(--done); }
   /* ----------------------------------------------------------------- Program */
   function program(c) {
     var st = c.S.settings, pos = E.position(st.startDate, c.today);
-    var h = header('Program', '16 weeks in four blocks. Belts mark the block.');
+    var h = header(P.programName, P.profile, 'page-head-long');
+    h += '<p class="muted prog-sub">16 weeks in four blocks. Belts mark the block. Block 1 is your written program; Blocks 2 to 4 are built from your rules.</p>';
     h += '<ul class="legend">';
     ['strength', 'bjj', 'recovery', 'speed', 'rest'].forEach(function (k) { h += '<li class="k-' + k + '"><i></i>' + KIND_CODE[k] + ' ' + KIND_NAME[k] + '</li>'; });
     h += '</ul>';
@@ -3875,7 +3667,7 @@ a.btn.done { color: var(--done); }
       }
       h += '</section>';
     });
-    return h;
+    return h + sleepCard(c, null, false);
   }
   function daySheet(c, w, d) {
     var wk = P.getWorkout(w, d), iso = E.dateFor(c.S.settings.startDate, w, d);
@@ -3899,14 +3691,15 @@ a.btn.done { color: var(--done); }
       var ex = P.flatExs(P.getWorkout(w, 1)).concat(P.flatExs(P.getWorkout(w, 5))).filter(function (e) { return e.liftKey === key; })[0];
       var b = P.blockOf(w), cur = c.view.week === w;
       head += '<th class="bk-' + b.belt + (cur ? ' cur' : '') + '">W' + w + '</th>';
-      var kg = rm && ex ? E.workingKg(key, rm.kg, ex.pct, c.S.settings) : null;
-      var shown = kg == null ? pct(ex.pct) : key === 'pullup' ? (kg > 0 ? '+' + E.fmtW(kg, units(c)) : 'BW') : E.fmtW(kg, units(c));
-      row += '<td class="' + (b.deload ? 'dl' : '') + (cur ? ' cur' : '') + '"><b>' + shown + '</b><small>' + ex.sets + '×' + ex.lo + '</small>' + (kg != null ? '<small>' + pct(ex.pct) + '</small>' : '') + '</td>';
+      var fixed = ex.kg != null, kg = fixed ? E.fixedKg(ex.kg, c.S.settings) : (rm ? E.workingKg(key, rm.kg, ex.pct, c.S.settings) : null);
+      var share = fixed ? (rm ? E.pctOfRM(key, kg, rm.kg, E.bodyKg(c.S.settings)) : null) : (kg != null ? ex.pct : null);
+      var shown = kg == null ? pct(ex.pct) : key === 'pullup' ? (kg > 0 ? '+' + E.fmtW(kg, units(c)) : 'BW') : kg > 0 ? E.fmtW(kg, units(c)) : 'BW';
+      row += '<td class="' + (b.deload ? 'dl' : '') + (cur ? ' cur' : '') + '"><b>' + shown + '</b><small>' + ex.sets + '×' + ex.lo + '</small>' + (share ? '<small>' + pct(share) + '</small>' : '') + '</td>';
     }
     return '<div class="proj"><table><thead><tr>' + head + '</tr></thead><tbody><tr>' + row + '</tr></tbody></table></div>';
   }
   function lifts(c) {
-    var u = units(c), h = header('Lifts', 'Your 1RMs drive every working weight in the plan.'), bw = E.bodyKg(c.S.settings);
+    var u = units(c), h = header('Lifts', 'Block 1 uses the kilograms in your program. From Block 2 your 1RMs set every working weight.'), bw = E.bodyKg(c.S.settings);
     E.LIFT_KEYS.forEach(function (k) {
       var rm = liftRM(c, k), pts = E.e1rmPoints(c.S, k), base = c.S.baselines[k];
       var src = !rm ? 'Not set yet' : rm.src === 'baseline' ? 'Entered by you, ' + longDate(rm.date) : rm.src === 'logged' ? 'Best of the last 4 weeks, ' + longDate(rm.date) : 'Last logged ' + longDate(rm.date);
@@ -3944,7 +3737,7 @@ a.btn.done { color: var(--done); }
     }
     h += '<div class="chat" id="chat" aria-live="polite">';
     if (!c.S.chat.length) {
-      h += '<div class="chat-empty">' + ICON.duck + '<p>Ask about today’s session, a movement, or how to adjust when something is off.</p></div>';
+      h += '<div class="chat-empty">' + ICON.duck + '<p>Ask about today’s session, your fuel and sleep plan, a movement, or how to adjust when something is off.</p></div>';
     }
     c.S.chat.forEach(function (m, i) {
       if (m.role === 'user') { h += '<div class="msg me"><p>' + esc(m.text).replace(/\n/g, '<br>') + '</p></div>'; return; }
@@ -3965,6 +3758,8 @@ a.btn.done { color: var(--done); }
     h += '</div>';
     h += '<div class="chips"><button class="chip" data-act="duck-modify">Modify today’s workout</button><button class="chip" data-act="duck-how">How do I perform…</button>' +
          '<button class="chip" data-act="duck-ask" data-q="I’m very fatigued today. What should I change?">I’m fatigued</button>' +
+         '<button class="chip" data-act="duck-ask" data-q="What should I eat and drink today, and when?">Fuel today</button>' +
+         '<button class="chip" data-act="duck-ask" data-q="I’m sleeping badly after training. Walk me through my sleep blueprint.">Sleep help</button>' +
          (c.S.chat.length ? '<button class="chip chip-quiet" data-act="duck-clear">Clear chat</button>' : '') + '</div>';
     h += '<form class="composer" data-form="ducky"><textarea id="duck-input" rows="1" placeholder="Ask Ducky" aria-label="Message Ducky" enterkeyhint="send"></textarea>' +
          '<button class="send" type="submit" aria-label="Send">' + ICON.send + '</button></form>';
@@ -4243,7 +4038,8 @@ a.btn.done { color: var(--done); }
     var bits = [];
     var n = Array.isArray(ex.sets) ? ex.sets.length : ex.sets;
     if (ex.mode !== 'check') bits.push(inGroup ? ex.label : n + ' × ' + ex.label);
-    if (ex.pct) bits.push(pct(ex.pct) + ' of 1RM');             // the weight itself is on the line below (rmLine)
+    if (ex.kg != null) bits.push(fixedTxt(c, ex));                // from your program; the share of 1RM is on the line below (rmLine)
+    else if (ex.pct) bits.push(pct(ex.pct) + ' of 1RM');        // the weight itself is on the line below (rmLine)
     return bits.join(', ');
   }
   // The weight on the set you are about to do (first unfinished set with a weight, else the last one), shown as a
@@ -4325,7 +4121,7 @@ a.btn.done { color: var(--done); }
       var live = it.exs.filter(function (e) { return !e.skipped; });
       var finished = live.every(function (e) { return e.sets.every(function (st) { return st.done; }); });
       var chip = finished ? 'Done' : pend && pend.it === i ? 'Round ' + (pend.set + 1) + ' of ' + rounds : rounds + (rounds === 1 ? ' round' : ' rounds');
-      h += '<section class="group g-' + it.variant + '" data-it="' + i + '"><header class="group-head"><div><h3>' + esc(it.label) + '</h3><p>' + esc(it.sub) + '</p></div><span class="round-chip">' + chip + '</span></header>' +
+      h += '<section class="group g-' + it.variant + '" data-it="' + i + '"><header class="group-head"><div><h3>' + esc(it.label) + '</h3>' + (it.sub ? '<p>' + esc(it.sub) + '</p>' : '') + '</div><span class="round-chip">' + chip + '</span></header>' +
            it.exs.map(function (e, k) { return exCard(c, i, k, e, pend, true); }).join('') +
            '<div class="ex-act"><button class="btn btn-ghost btn-sm" data-act="add-round" data-it="' + i + '">' + ICON.plus + 'Add round</button>' +
            '<button class="btn btn-quiet btn-sm" data-act="rm-round" data-it="' + i + '">' + ICON.minus + 'Remove round</button></div></section>';
@@ -5114,7 +4910,7 @@ a.btn.done { color: var(--done); }
    The two BUILD lines are rewritten by build-single.js for the single-file page (index-single.html), which has
    nothing to cache but the page itself; there a missing file must not stop the worker installing. */
 'use strict';
-var CACHE = 'ha-v5';
+var CACHE = 'ha-v6';
 var SHELL = ['./'];   // BUILD:SHELL
 var STRICT = false;   // BUILD:STRICT
 

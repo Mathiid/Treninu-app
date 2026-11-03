@@ -17,14 +17,14 @@
     return out;
   }
 
-  // Pre-fill one exercise: % of the current 1RM for the six tracked lifts (pull-ups: the weight to ADD to
-  // bodyweight), "last time (+1 step)" for other weighted work, and the written rep/second target for the rest.
+  // Pre-fill one exercise: the kilograms written in the program (Block 1), otherwise % of the current 1RM for the six
+  // tracked lifts (pull-ups: the weight to ADD to bodyweight), "last time (+1 step)" for other weighted work, and the written rep/second target for the rest.
   function mkSessionEx(ex, state, todayISO) {
     var s = state.settings, incKg = E.toKg(E.incOf(s), s.units);
     var e = clone(ex);
     e.skipped = false; e.sets = []; e.modified = false;
     var rm = e.liftKey ? E.oneRMFor(state, e.liftKey, todayISO) : null;
-    var base = rm && e.pct ? E.workingKg(e.liftKey, rm.kg, e.pct, s) : null;
+    var base = e.kg != null ? E.fixedKg(e.kg, s) : (rm && e.pct ? E.workingKg(e.liftKey, rm.kg, e.pct, s) : null);   // a fixed kg from the program wins over a percent
     var suggest = (e.mode === 'weightReps' && base == null) ? E.suggestFromLast(E.prevSets(state, e.name), e, incKg) : null;
     e.oneRM = rm ? rm.kg : null;
     e.targetKg = base;

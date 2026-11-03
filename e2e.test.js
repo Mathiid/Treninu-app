@@ -146,7 +146,7 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
   await test('first launch: week 1, day 1 for the start date, with a prompt to add heart-rate details', async () => {
     assert.ok(/Week\s*1\s*of 16/.test((await text(page, '.hero-week')).replace(/\s+/g, ' ')));
     assert.ok(/Today is day 1/.test(await text(page, '.hero-sub')));
-    assert.ok(/Power & Base Leg Day/.test(await text(page, '.day-title')));
+    assert.ok(/Power & ATG Leg/.test(await text(page, '.day-title')));
     assert.ok(await page.locator('[data-act=goto-settings][data-focus=hr]').count());
     await shot(page, '01-today-empty');
   });
@@ -155,8 +155,9 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     await setupAthlete(a);
     assert.ok(/136\s*[–-]\s*150/.test((await text(page, '.run-num')).replace(/\s+/g, '')), 'Karvonen 60-70% for age 30, resting 55');
     const prev = await page.locator('.p-row', { hasText: 'Power Clean' }).locator('.p-w').innerText();
-    assert.ok(/62\.5 kg/.test(prev), 'power clean preview weight: ' + prev);
-    assert.ok(/72\.5 kg/.test(await page.locator('.p-row', { hasText: 'Bench Press' }).locator('.p-w').innerText()));
+    assert.ok(/52\.5 kg/.test(prev) && /65\.6% of 1RM/.test(prev), 'Block 1 power clean: the program\'s 52.5 kg, and its share of the 80 kg 1RM: ' + prev);
+    const bp = await page.locator('.p-row', { hasText: 'DB Bench Press' }).first().locator('.p-w').innerText();
+    assert.ok(/22\.5 kg/.test(bp) && /22\.5% of 1RM/.test(bp), 'DB bench: ' + bp);
     await shot(page, '02-today-ready', true);
   });
 
@@ -176,7 +177,7 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     await page.waitForSelector('#workout .wk-body');
     assert.ok(await page.locator('#workout').isVisible());
     const pc = row(page, 'Power Clean', 0);
-    assert.strictEqual(await pc.locator('.in-w').inputValue(), '62.5');
+    assert.strictEqual(await pc.locator('.in-w').inputValue(), '52.5', 'the kilograms written in the program');
     assert.strictEqual(await pc.locator('.in-r').inputValue(), '5', 'reps pre-filled with the written target');
     assert.strictEqual(await pc.locator('.prev').innerText(), '–', 'no history yet');
     assert.strictEqual(await row(page, 'Power Clean', 0).locator('.chk').count(), 1);
@@ -323,7 +324,7 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     await shot(page, '08-summary');
     await tap('[data-act=sheet-close]');
     const S = await state(page); assert.strictEqual(S.logs.length, 1); assert.strictEqual(S.active, null);
-    assert.ok(S.logs[0].entries.find((e) => e.name === 'Bench Press').sets.some((x) => x.w === 80 && x.r === 10));
+    assert.ok(S.logs[0].entries.find((e) => e.name === 'DB Bench Press').sets.some((x) => x.w === 80 && x.r === 10));
   });
 
   await test('heavier-than-planned bench raises the 1RM, and Previous shows last time next session', async () => {
@@ -334,10 +335,10 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     await shot(page, '09-lifts-after');
     await tab('today');
     await page.evaluate(() => { HA.actions.startWorkout(HA.store.get(), 1, 1, '2026-11-02'); HA.app.openWorkout(); });
-    // "Previous" lines up set by set: round 1 was the planned 72.5 x 10, round 2 the heavier 80 x 10
+    // "Previous" lines up set by set: round 1 was the planned 22.5 x 10, round 2 the heavier 80 x 10
     const prev = async (i) => (await row(page, 'Bench Press', i).locator('.prev').innerText()).replace(/\s/g, '');
     try {
-      assert.strictEqual(await prev(0), '72.5×10'); assert.strictEqual(await prev(1), '80×10');
+      assert.strictEqual(await prev(0), '22.5×10'); assert.strictEqual(await prev(1), '80×10');
     } finally {
       await page.evaluate(() => { HA.actions.discard(HA.store.get()); });
       await tap('[data-act=wk-min]'); await page.evaluate(() => HA.store.flush());
@@ -402,6 +403,10 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     assert.ok(/Hybrid Athlete/.test(c.body.systemInstruction.parts[0].text) && /Zercher/.test(c.body.systemInstruction.parts[0].text), 'program-aware system prompt');
     assert.ok(/TODAY'S WORKOUT/.test(c.body.systemInstruction.parts[0].text) && /FULL PROGRAM SPEC/.test(c.body.systemInstruction.parts[0].text));
     assert.ok(!c.url.includes('AIza'), 'key is in a header, not the URL');
+    assert.ok(/\/models\/gemini-3\.8-flash:generateContent$/.test(c.url), 'the active model is gemini-3.8-flash: ' + c.url);
+    const sys = c.body.systemInstruction.parts[0].text;
+    assert.ok(/NUTRITION AND RECOVERY MANUAL/.test(sys) && /Thermal Dump Shower/.test(sys) && /Post-AM meal|Meal timing, Days 1 and 5/.test(sys) && /LOADS FOR ALL 16 WEEKS/.test(sys) && /Tactical/.test(sys), 'Ducky has the nutrition, sleep and load tables');
+    assert.strictEqual(await page.evaluate(() => HA.store.get().settings.geminiModel), 'gemini-3.8-flash');
     await shot(page, '10-ducky-how');
   });
   await test('typing the question yourself also gets a link for the exercise it names', async () => {
@@ -447,7 +452,7 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     const unfolded = ics.replace(/\r\n[ \t]/g, '');
     const ev = (title) => { const m = unfolded.split('BEGIN:VEVENT').find((b) => b.includes('SUMMARY:' + title)); assert.ok(m, 'missing ' + title); return m; };
     assert.ok(/DTSTART:20261102T070000/.test(ev('W1 D1 – AM Zone 2 Run')));
-    assert.ok(/DTSTART:20261102T173000/.test(ev('W1 D1 – PM Power & Base Leg Day + Upper'.replace(' & ', ' & ')).replace(/\\,/g, ',')) || /DTSTART:20261102T173000/.test(unfolded));
+    assert.ok(/DTSTART:20261102T173000/.test(ev('W1 D1 – PM Power & ATG Leg + Upper').replace(/\\,/g, ',')) || /DTSTART:20261102T173000/.test(unfolded));
     assert.ok(/DTSTART:20261103T190000[\s\S]*DTEND:20261103T210000/.test(ev('W1 D2 – BJJ Gi')));
     assert.ok(/DTSTART:20261104T190000/.test(ev('W1 D3 – BJJ No-Gi')));
     assert.ok(/SUMMARY:W1 D4 –/.test(unfolded) && /SUMMARY:W1 D5 –/.test(unfolded) && /SUMMARY:W1 D6 –/.test(unfolded));
@@ -475,9 +480,9 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     try {
       await page.selectOption('[data-set=units]', 'lb'); await adv(100);
       await tab('today');
-      const shown = await page.locator('.p-row', { hasText: 'Bench Press' }).locator('.p-w').innerText();
-      const kg = await page.evaluate(() => { const S = HA.store.get(), r = HA.engine.oneRMFor(S, 'bench', HA.actions.isoToday()); const ex = HA.program.flatExs(HA.program.getWorkout(1, 1)).find((e) => e.liftKey === 'bench'); return r.kg * ex.pct; });
-      const want = Math.round(kg * 2.20462 / 5) * 5;
+      const shown = await page.locator('.p-row', { hasText: 'DB Bench Press' }).first().locator('.p-w').evaluate((e) => e.firstChild.textContent);
+      const kg = await page.evaluate(() => HA.program.flatExs(HA.program.getWorkout(1, 1)).find((e) => e.liftKey === 'bench').kg);   // the program's 22.5 kg
+      const want = Math.round(kg * 2.20462 / 5) * 5;                                                                                    // loaded in your plate step: 50 lb
       assert.strictEqual(shown.replace(/\s/g, ''), want + 'lb', `bench shows ${shown}, expected ${want} lb`);
       await tab('lifts'); assert.ok(/lb 1RM/.test(await text(page, '.lift-num')));
       assert.ok(Math.abs((await state(page)).baselines.zercher.kg - 120) < 0.01, 'stored in kg');
@@ -534,6 +539,28 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
       assert.ok(await page.locator('#workout .group.g-contrast .ex').count() >= 2, 'contrast pair');
       assert.ok(/Week 5, day 1/.test(await text(page, '#workout .wk-title')));
     } finally { await tap('[data-act=wk-finish]'); await tap('[data-act=wk-discard]'); }
+  });
+
+  /* ------------------------------------------------- fuel and sleep cards */
+  await test('Fuel and Sleep cards open on a BJJ day, read well at 360 px and need no sideways scrolling', async () => {
+    const b = await openApp(browser, url, { w: 360 }); allErrors.push(b.errors);
+    await b.tap('[data-act=pick-day][data-d="2"]');
+    const fuel = b.page.locator('details.fuel'), sleep = b.page.locator('details.sleep');
+    assert.strictEqual(await fuel.count(), 1); assert.strictEqual(await sleep.count(), 1);
+    assert.ok(!(await fuel.evaluate((e) => e.open)), 'closed until you open it');
+    assert.ok(/Creatine/.test(await text(b.page, 'details.fuel > summary')) || /5g daily/.test(await text(b.page, 'details.fuel > summary')), 'the summary shows the essentials');
+    await fuel.locator('summary').tap(); await sleep.locator('summary').tap(); await b.adv(100);
+    const t = (await text(b.page, 'details.fuel')).replace(/\s+/g, ' '), sl = (await text(b.page, 'details.sleep')).replace(/\s+/g, ' ');
+    assert.ok(/Pre-BJJ meal.*15:30\u201316:30.*100g oats in water/.test(t) && /Intra-BJJ.*25-35g fast carbs/.test(t) && /Post-BJJ.*21:30/.test(t), t);
+    assert.ok(/Electrolytes.*1\/4 tsp sea salt/.test(t) && /Hydration.*3\.5 to 4\.0 Liters/.test(t), t);
+    assert.ok(/Downshift.*21:15/.test(sl) && /Thermal Dump Shower.*22:15/.test(sl) && /16-18/.test(sl) && /20-Minute Reset Rule/.test(sl), sl);
+    const r = await b.page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
+    assert.ok(r.sw <= r.iw, 'overflow ' + r.sw + ' > ' + r.iw);
+    await shot(b.page, '13-fuel-sleep-360');
+    await b.tap('[data-act=pick-day][data-d="4"]');
+    assert.strictEqual(await b.page.locator('details.sleep').count(), 0, 'sleep blueprint is on BJJ days (and in the Program tab)');
+    await b.tab('program'); assert.ok(/Master Program/.test(await text(b.page, '.page-head h1')) && await b.page.locator('details.sleep').count() === 1);
+    await b.ctx.close();
   });
 
   /* ------------------------------------------------- layout and accessibility */
@@ -596,7 +623,7 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
       Object.defineProperty(document, 'visibilityState', { get: () => window.__vis || 'visible', configurable: true });
     });
     await b.tap('[data-act=start]');
-    await b.page.locator('#workout .srow .chk').first().tap(); await b.adv(60);
+    await b.page.locator('#workout .srow:not(.m-check) .chk').first().tap(); await b.adv(60);
     assert.ok(await b.page.locator('#restbar').isVisible(), 'rest running');
     await b.page.evaluate(() => { window.__vis = 'hidden'; });                  // as if the app were in the background
     await b.adv((await b.page.evaluate(() => HA.timer.remaining())) * 1000 + 700);
@@ -631,12 +658,13 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
   });
 
   /* ---------------------------------------------- Bulgarian split squat and pull-ups: tracked weighted lifts */
-  await test('split squat and pull-ups: 1RMs, bodyweight, working weights, live % of 1RM, recalibration after a session', async () => {
+  await test('split squat and pull-ups: program kilograms, 1RMs, bodyweight, live % of 1RM (Epley), recalibration after a session', async () => {
     const b = await openApp(browser, url); allErrors.push(b.errors);
     const { page, tap, tab, adv } = b;
     await tab('lifts');
-    assert.ok(/Add bodyweight/.test(await text(page, '.lift:has(h2:text-is("Pull-up"))')), 'pull-up card asks for a bodyweight');
-    await tap('[data-act=goto-settings][data-focus=bw]');
+    assert.ok(!/Add bodyweight/.test(await text(page, '.lift:has(h2:text-is("Pull-up"))')), 'bodyweight starts at the 70 kg of your profile');
+    await tab('settings');
+    assert.strictEqual(await page.locator('[data-set=bodyKg]').inputValue(), '70');
     await page.fill('[data-set=bodyKg]', '80'); await page.dispatchEvent('[data-set=bodyKg]', 'change'); await adv(60);
     assert.strictEqual(await page.locator('[data-set=bodyKg]').inputValue(), '80');
     await tab('lifts');
@@ -647,15 +675,19 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     assert.strictEqual((await text(page, '.lift:has(h2:text-is("Bulgarian Split Squat")) .lift-num b')).trim(), '40');
     const pu = (await card('Pull-up').innerText()).replace(/\s+/g, ' ');
     assert.ok(/Bodyweight 80 \+ 40 kg added/.test(pu) && /120\s*kg total 1RM/.test(pu), pu);
-    assert.ok(/\+5/.test(await card('Pull-up').locator('.proj td').first().innerText()), 'projection shows the added weight');
+    const proj = (c, i) => card(c).locator('.proj td').nth(i).innerText().then((t) => t.replace(/\s+/g, ' ').trim());
+    assert.strictEqual(await proj('Pull-up', 0), 'BW 3×10 66.7%', 'week 1: bodyweight, and its share of the 1RM');
+    assert.strictEqual(await proj('Pull-up', 2), '+2.5 3×6 68.8%', 'week 3: +2.5 kg added, as in the program');
+    assert.strictEqual(await proj('Bulgarian Split Squat', 0), '15 3×10 37.5%', 'week 1: 15 kg of the 40 kg 1RM');
+    assert.ok(/\+5 3×10 71\.4%/.test(await proj('Pull-up', 12)), 'Block 4 week 13 is a percent of the 1RM: ' + await proj('Pull-up', 12));
     await shot(page, '15-lifts-six');
     await tab('today'); await tap('[data-act=start]');
     const rm = (name) => ex(page, name).locator('.ex-rm').innerText();
-    assert.strictEqual(await rm('Bulgarian Split Squat'), '27.5 kg = 68.8% of estimated 1RM 40 kg');
-    assert.strictEqual(await rm('Pull-Ups'), '+5 kg added = 70.8% of estimated 1RM 120 kg total');
-    assert.ok(/71\.4% of 1RM/.test(await ex(page, 'Bulgarian Split Squat').locator('.ex-id').innerText()), 'plan percentage in the sub-line');
-    assert.strictEqual(await row(page, 'Bulgarian Split Squat', 0).locator('.in-w').inputValue(), '27.5');
-    assert.strictEqual(await row(page, 'Pull-Ups', 0).locator('.in-w').inputValue(), '5');
+    assert.strictEqual(await rm('Bulgarian Split Squat'), '15 kg = 37.5% of estimated 1RM 40 kg');
+    assert.strictEqual(await rm('Pull-Ups'), 'Bodyweight 80 kg = 66.7% of estimated 1RM 120 kg total');
+    assert.ok(/15 kg in total/.test(await ex(page, 'Bulgarian Split Squat').locator('.ex-id').innerText()), 'the program weight in the sub-line');
+    assert.strictEqual(await row(page, 'Bulgarian Split Squat', 0).locator('.in-w').inputValue(), '15', 'the kilograms from the program');
+    assert.strictEqual(await row(page, 'Pull-Ups', 0).locator('.in-w').inputValue(), '', 'bodyweight is an empty field');
     // the percentage follows what you type
     await row(page, 'Bulgarian Split Squat', 0).locator('.in-w').fill('30'); await adv(60);
     assert.strictEqual(await rm('Bulgarian Split Squat'), '30 kg = 75% of estimated 1RM 40 kg');
@@ -665,7 +697,7 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     assert.strictEqual(await rm('Pull-Ups'), 'Bodyweight 80 kg = 66.7% of estimated 1RM 120 kg total');
     await row(page, 'Pull-Ups', 0).locator('.in-w').fill('10'); await adv(60);
     await shot(page, '16-workout-split-squat-pullups');
-    // do one set of each, finish: both estimates move up
+    // do one set of each, finish: both estimates move up (Epley with the 2 reps in reserve of Block 1)
     await row(page, 'Bulgarian Split Squat', 0).locator('.chk').tap(); await adv(60);
     await row(page, 'Pull-Ups', 0).locator('.chk').tap(); await adv(60);
     await tap('[data-act=wk-finish]'); await tap('[data-act=wk-finish-go]');
@@ -915,7 +947,7 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     // one session: the program's title, exact start/end, the workout in the notes, and this device's time zone
     let u = await openLink(page.locator('.cal-links a').nth(1));
     assert.strictEqual(u.origin + u.pathname + '?action=' + u.searchParams.get('action'), 'https://calendar.google.com/calendar/render?action=TEMPLATE');
-    assert.strictEqual(u.searchParams.get('text'), 'W1 D1 \u2013 PM Power & Base Leg Day + Upper');
+    assert.strictEqual(u.searchParams.get('text'), 'W1 D1 \u2013 PM Power & ATG Leg + Upper');
     assert.strictEqual(u.searchParams.get('dates'), '20261102T173000/20261102T190000'); assert.strictEqual(u.searchParams.get('ctz'), 'Europe/Riga');
     assert.ok(/Bulgarian Split Squat: 3 x 10 reps\/leg/.test(u.searchParams.get('details')) && /\n/.test(u.searchParams.get('details')), u.searchParams.get('details').slice(0, 120));
     // the whole week: a sheet with one button per session
@@ -1004,7 +1036,7 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     assert.strictEqual(g.prompt, 'consent', 'first sign-in asks for consent');
     assert.strictEqual(fake.cal().summary, 'Hybrid Athlete Schedule'); assert.strictEqual(fake.live().length, 144); assert.strictEqual(fake.cal().timeZone, 'Europe/Riga');
     const e1 = fake.ev('ha01d1p'); assert.deepStrictEqual([e1.start.dateTime, e1.end.dateTime, e1.start.timeZone], ['2026-11-02T17:30:00', '2026-11-02T19:00:00', 'Europe/Riga']);
-    assert.ok(/Power & Base Leg Day/.test(e1.summary) && /Bench Press/.test(e1.description), e1.summary);
+    assert.ok(/Power & ATG Leg/.test(e1.summary) && /Bench Press/.test(e1.description), e1.summary);
     const exported = await page.evaluate(() => HA.store.exportJSON()); assert.ok(!/tok-1/.test(exported), 'the access token never goes into a backup');
     assert.ok(/Everything is in step/.test(await text(page, '#gcal-status')));
 

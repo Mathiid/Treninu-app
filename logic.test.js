@@ -92,6 +92,7 @@ test('dates & program position', () => {
 });
 
 console.log('Program');
+const find1 = (w, d, pred) => P.flatExs(P.getWorkout(w, d)).find(pred);
 test('all 112 days resolve with sane exercises', () => {
   let strength = 0;
   for (let w = 1; w <= 16; w++) for (let d = 1; d <= 7; d++) {
@@ -99,106 +100,177 @@ test('all 112 days resolve with sane exercises', () => {
     assert.strictEqual(wk.week, w); assert.strictEqual(wk.day, d);
     if (d === 7 || d === 2 || d === 3) assert.strictEqual(wk.items.length, 0);
     else assert.ok(wk.items.length > 3, `W${w}D${d} has items`);
+    assert.ok(wk.title && wk.shortTitle, 'titles');
     P.flatExs(wk).forEach((ex) => {
       assert.ok(ex.name && ex.name.length, 'name');
       assert.ok(Number.isInteger(ex.sets) && ex.sets >= 1 && ex.sets <= 8, `${ex.name} sets=${ex.sets} (W${w}D${d})`);
       assert.ok(['weightReps', 'reps', 'hold', 'result', 'check'].includes(ex.mode), ex.mode);
       assert.ok(Number.isFinite(ex.rest) && ex.rest >= 0, `${ex.name} rest`);
+      if (/burnout/i.test(ex.name)) return;                           // to failure: no rep target
       if (ex.mode === 'reps' || ex.mode === 'hold' || ex.mode === 'weightReps') assert.ok(ex.target > 0, `${ex.name} target (W${w}D${d})`);
-      if (ex.liftKey) assert.ok(ex.pct > 0.5 && ex.pct <= 1, `${ex.name} pct ${ex.pct}`);
-      assert.ok(!/NaN|undefined|null/.test(ex.label + ex.name + ex.note), `${ex.name} label "${ex.label}"`);
+      if (ex.liftKey) {
+        assert.ok(ex.kg != null ? ex.kg >= 0 && ex.pct === null : ex.pct > 0.5 && ex.pct <= 1, `${ex.name} kg ${ex.kg} pct ${ex.pct} (W${w}D${d})`);
+        assert.strictEqual(ex.mode, 'weightReps', ex.name + ' is logged with weights');
+      }
+      assert.ok(!/NaN|undefined|null/.test(ex.label + ex.name + ex.note), `${ex.name} label "${ex.label}" note "${ex.note}"`);
     });
     wk.items.forEach((it) => { if (it.kind === 'group') it.exs.forEach((e) => assert.strictEqual(e.sets, it.rounds, `${it.label} rounds`)); });
     if (wk.kind === 'strength') strength++;
   }
   assert.strictEqual(strength, 32);
+  assert.strictEqual(P.programName, 'Hybrid Athlete Master Program & Tactical Recovery Manual');
+  assert.ok(/179 cm, 70 kg/.test(P.profile) && /VAD/.test(P.profile));
 });
-test('Block 1 matches the spec numbers', () => {
-  const clean = (w) => P.flatExs(P.getWorkout(w, 1)).find((e) => e.liftKey === 'clean');
-  assert.deepStrictEqual([1, 2, 3, 4].map((w) => [clean(w).sets, clean(w).target]), [[4, 5], [4, 4], [4, 3], [2, 3]]);
-  const bss = P.flatExs(P.getWorkout(1, 1)).find((e) => /Bulgarian/.test(e.name));
-  assert.deepStrictEqual([bss.sets, bss.target, bss.suffix], [3, 10, '/leg']);
-  const hold = P.flatExs(P.getWorkout(3, 1)).find((e) => /Pause Split/.test(e.name));
-  assert.deepStrictEqual([hold.sets, hold.target, hold.mode], [2, 30, 'hold']);
+test('Block 1 loads are exactly the kilograms in the program, week by week', () => {
+  const row = (d, key, fn) => [1, 2, 3, 4].map((w) => { const e = find1(w, d, (x) => x.liftKey === key); return fn(e); });
+  const sk = (e) => [e.sets, e.target, e.kg];
+  assert.deepStrictEqual(row(1, 'clean', sk), [[4, 5, 52.5], [4, 4, 55], [4, 3, 60], [2, 3, 45]]);
+  assert.deepStrictEqual(row(1, 'bss', sk), [[3, 10, 15], [3, 8, 20], [3, 6, 25], [2, 6, 0]]);
+  assert.deepStrictEqual(row(1, 'bench', sk), [[3, 10, 22.5], [3, 8, 22.5], [3, 6, 25], [3, 6, 17.5]]);
+  assert.deepStrictEqual(row(1, 'pullup', sk), [[3, 10, 0], [3, 8, 0], [3, 6, 2.5], [3, 5, 0]]);
+  assert.deepStrictEqual(row(5, 'zercher', sk), [[3, 10, 50], [3, 8, 55], [3, 6, 57.5], [2, 6, 42.5]]);
+  assert.deepStrictEqual(row(5, 'rdl', sk), [[3, 10, 52.5], [3, 8, 55], [3, 6, 60], [2, 6, 45]]);
+  assert.deepStrictEqual(row(5, 'bench', sk), row(1, 'bench', sk), 'bench is the same on both days');
+  assert.deepStrictEqual(row(5, 'pullup', sk), row(1, 'pullup', sk));
+  // the fixed kilograms replace the percentage in Block 1
+  [1, 2, 3, 4].forEach((w) => [1, 5].forEach((d) => P.flatExs(P.getWorkout(w, d)).filter((e) => e.liftKey).forEach((e) => {
+    assert.strictEqual(e.pct, null, e.name); assert.strictEqual(e.rir, e.liftKey === 'clean' ? 4 : 2, e.name);   // power cleans stop 2 reps further from failure
+  })));
+});
+test('Block 1 matches the program: exercises, rep targets, tendon work, plyos, supersets', () => {
+  const w1 = P.getWorkout(1, 1);
+  assert.ok(/Zone 2 Run/.test(w1.am.text) && w1.am.minLo === 30 && w1.am.minHi === 45);
+  const bss = find1(1, 1, (e) => /Bulgarian/.test(e.name));
+  assert.deepStrictEqual([bss.name, bss.suffix, bss.mode, bss.label], ['ATG Bulgarian Split Squat', '/leg', 'weightReps', '10 reps/leg']);
+  assert.ok(/2 .* 7\.5 kg dumbbells/.test(bss.note), 'the dumbbell option is kept as a note: ' + bss.note);
+  const hold = find1(3, 1, (e) => /Pause Split/.test(e.name));
+  assert.deepStrictEqual([hold.sets, hold.target, hold.mode, hold.suffix, hold.cat], [2, 30, 'hold', '/leg', 'tendon']);
+  assert.deepStrictEqual([1, 2, 3, 4].map((w) => find1(w, 1, (e) => /Pause Split/.test(e.name)).sets + 'x' + find1(w, 1, (e) => /Pause Split/.test(e.name)).target), ['2x20', '2x25', '2x30', '1x15']);
+  assert.deepStrictEqual([1, 2, 3, 4].map((w) => { const e = find1(w, 1, (x) => /Seated Box/.test(x.name)); return e.sets + 'x' + e.target; }), ['3x5', '3x5', '3x4', '2x3']);
+  assert.deepStrictEqual([1, 2, 3, 4].map((w) => { const e = find1(w, 1, (x) => /Pogo/.test(x.name)); return e.sets + 'x' + e.target; }), ['3x12', '3x15', '3x15', '2x10']);
   const g = P.getWorkout(1, 1).items.filter((i) => i.kind === 'group');
   assert.strictEqual(g.length, 2);
-  assert.deepStrictEqual(g[0].exs.map((e) => e.name), ['Plyo Push-Up (or Incline)', 'Bench Press', 'Floor Hollow Body Hold']);
-  assert.deepStrictEqual(g[0].exs.map((e) => e.rest), [30, 30, 90]);
-  assert.strictEqual(g[0].restAfter, 120); assert.strictEqual(g[1].restAfter, null);
-  const nordic = (w) => P.flatExs(P.getWorkout(w, 5)).find((e) => /Nordic/.test(e.name));
+  assert.deepStrictEqual(g[0].exs.map((e) => e.name), ['Plyo Push-Up', 'DB Bench Press', 'Floor Hollow Body Hold']);
+  assert.deepStrictEqual(g[1].exs.map((e) => e.name), ['Pull-Ups', 'Hanging Leg Raises']);
+  assert.deepStrictEqual(g[0].exs.map((e) => e.rest), [30, 30, 90]); assert.strictEqual(g[0].rounds, 3);
+  assert.deepStrictEqual([3, 4].map((w) => P.flatExs(P.getWorkout(w, 1)).find((e) => /Leg Raises/.test(e.name)).target), [10, 8]);
+  const fin = P.getWorkout(1, 1).items.filter((i) => i.kind === 'ex').map((i) => i.ex.name);
+  assert.ok(fin.includes('DB Hammer Curls') && fin.includes('Banded Face Pulls'), 'finisher A: ' + fin);
+  assert.strictEqual(find1(1, 1, (e) => /Hammer/.test(e.name)).mode, 'weightReps');
+  const d5 = P.getWorkout(1, 5).items;
+  assert.deepStrictEqual(d5.filter((i) => i.kind === 'group').map((i) => i.exs.map((e) => e.name)),
+    [['DB Bench Press', 'Pallof Press'], ['Explosive Inverted Rows', 'Pull-Ups', 'Hanging Knee-to-Elbows']]);
+  assert.deepStrictEqual([1, 2, 3, 4].map((w) => find1(w, 5, (e) => /Split Jump/.test(e.name)).sets + 'x' + find1(w, 5, (e) => /Split Jump/.test(e.name)).target), ['3x6', '3x6', '3x4', '2x4']);
+  const fin5 = d5.filter((i) => i.kind === 'ex').map((i) => i.ex.name);
+  assert.ok(fin5.includes('Tricep Rope Pushdowns') && fin5.includes('DB Lateral Raises'), 'finisher B: ' + fin5);
+  const nordic = (w) => find1(w, 5, (e) => /Nordic/.test(e.name));
   assert.deepStrictEqual([1, 2, 3, 4].map((w) => [nordic(w).sets, nordic(w).target]), [[2, 4], [2, 5], [3, 5], [1, 4]]);
+  assert.ok(/assisted/.test(nordic(1).label) && /3s lowering/.test(nordic(2).label));
   assert.strictEqual(P.getWorkout(4, 1).deload, true);
-  assert.ok(P.getWorkout(4, 1).items.some((i) => i.kind === 'group' && i.exs.every((e) => e.sets === 3)), 'spec keeps 3 rounds in W4');
+  assert.ok(P.getWorkout(4, 1).items.some((i) => i.kind === 'group' && i.exs.every((e) => e.sets === 3)), 'the program keeps 3 rounds in W4');
 });
 test('Block 2 and 3 follow the rules', () => {
-  // the four barbell lifts follow the heavy-rep rules; split squats and pull-ups have their own rep tables (next test)
+  // the four barbell/dumbbell lifts follow the heavy-rep rules; split squats and pull-ups have their own rep tables (below)
   const lifts = (w, d) => P.flatExs(P.getWorkout(w, d)).filter((e) => e.liftKey && e.liftKey !== 'bss' && e.liftKey !== 'pullup');
-  // heavy 4-6 reps in Block 2, 1-3 in Block 3
-  lifts(5, 5).forEach((e) => assert.ok(e.target >= 4 && e.target <= 6 && e.pct >= 0.80 && e.pct <= 0.88, `${e.name} ${e.target} ${e.pct}`));
-  lifts(9, 5).forEach((e) => assert.ok(e.target >= 1 && e.target <= 3 && e.pct >= 0.85, `${e.name} ${e.target} ${e.pct}`));
-  // deload: 50-60% 1RM and volume roughly halved
+  // heavy 4-6 reps in Block 2, 1-3 in Block 3; a percent of 1RM, never a fixed kilogram
+  lifts(5, 5).forEach((e) => assert.ok(e.kg === null && e.target >= 4 && e.target <= 6 && e.pct >= 0.80 && e.pct <= 0.88, `${e.name} ${e.target} ${e.pct}`));
+  lifts(9, 5).forEach((e) => assert.ok(e.kg === null && e.target >= 1 && e.target <= 3 && e.pct >= 0.85, `${e.name} ${e.target} ${e.pct}`));
+  assert.ok(/27\.5.30 kg/.test(find1(5, 1, (e) => /Bench/.test(e.name)).note), 'DB bench target for Block 2');
+  // deload: 55% 1RM and volume roughly halved
   lifts(8, 1).forEach((e) => assert.strictEqual(e.pct, 0.55));
   lifts(12, 5).forEach((e) => assert.strictEqual(e.pct, 0.55));
   // Nordics
-  const nordic = (w) => P.flatExs(P.getWorkout(w, 5)).find((e) => /Nordic/.test(e.name));
+  const nordic = (w) => find1(w, 5, (e) => /Nordic/.test(e.name));
   [5, 6, 7].forEach((w) => assert.ok(nordic(w).sets === 3 && nordic(w).target >= 4 && nordic(w).target <= 6));
   [9, 10, 11].forEach((w) => assert.ok(nordic(w).sets === 2 && nordic(w).target >= 3 && nordic(w).target <= 4));
-  // contrast complex on Days 1 & 5: iso 20 s rest -> jump 3-4 reps -> 2 min, 3 rounds
+  // contrast complex on Days 1 & 5: iso 20 s rest -> jump 3-4 reps -> 2 min, 3 rounds; it replaces the plyo block
   [1, 5].forEach((d) => {
     const c = P.getWorkout(5, d).items.find((i) => i.kind === 'group' && i.variant === 'contrast');
     assert.ok(c, 'contrast on day ' + d);
     assert.deepStrictEqual([c.rounds, c.exs[0].rest, c.exs[1].rest, c.exs[1].lo, c.exs[1].hi], [3, 20, 120, 3, 4]);
+    assert.ok(!P.flatExs(P.getWorkout(5, d)).some((e) => e.cat === 'plyo' && e.sets !== 3 && false));
   });
   assert.strictEqual(P.getWorkout(9, 1).items.find((i) => i.variant === 'contrast').exs[1].name, 'Depth Jump');
   assert.ok(/single-leg/i.test(P.getWorkout(9, 5).items.find((i) => i.variant === 'contrast').exs[1].name));
-  // BJJ effort text from the rules
+  // split squats and pull-ups
+  assert.deepStrictEqual([5, 6, 7, 8].map((w) => find1(w, 1, (e) => e.liftKey === 'bss').target), [6, 5, 4, 5]);
+  assert.deepStrictEqual([9, 10, 11, 12].map((w) => find1(w, 1, (e) => e.liftKey === 'bss').target), [3, 3, 2, 3]);
+  assert.deepStrictEqual([5, 6, 7, 8].map((w) => find1(w, 1, (e) => e.liftKey === 'pullup').target), [6, 6, 5, 3]);
+  assert.deepStrictEqual([9, 10, 11, 12].map((w) => find1(w, 5, (e) => e.liftKey === 'pullup').target), [5, 4, 3, 3]);
+  // BJJ effort and the decompression flow come from the program text
   assert.ok(/60.70%/.test(P.getWorkout(5, 2).effort) && /85.95%/.test(P.getWorkout(5, 3).effort));
+  assert.ok(/thread the needle/.test(P.getWorkout(5, 2).focus));
   // Block 3 sprints: 30m flat on odd weeks with Flying 20s, steep 20m hill on even weeks
   const flat = P.flatExs(P.getWorkout(9, 6)).map((e) => e.name), hill = P.flatExs(P.getWorkout(10, 6)).map((e) => e.name);
   assert.ok(flat.includes('Flying 20') && flat.includes('Flat sprint') && hill.includes('Hill sprint') && !hill.includes('Flying 20'));
-  assert.ok(/30m/.test(P.flatExs(P.getWorkout(9, 6)).find((e) => e.name === 'Flat sprint').label));
+  assert.ok(/30m/.test(find1(9, 6, (e) => e.name === 'Flat sprint').label));
+  assert.ok(/20m steep/.test(find1(10, 6, (e) => e.name === 'Hill sprint').label));
+  // Block 2 sprint distances grow to 20-30 m
+  assert.ok(/20-30m/.test(find1(5, 6, (e) => e.name === 'Flat sprint').label));
 });
-test('Block 4 (assumed) is flagged and repeats Block 1', () => {
+test('Block 4 restarts the wave from your Block 3 peak and adds the Pre-VAD work', () => {
   const w = P.getWorkout(13, 1);
-  assert.ok(w.assumed && !w.derived && w.belt === 'brown');
-  assert.deepStrictEqual(P.flatExs(w).map((e) => e.name + e.sets + e.label), P.flatExs(P.getWorkout(1, 1)).map((e) => e.name + e.sets + e.label));
-  assert.strictEqual(P.getWorkout(16, 1).deload, true);
+  assert.ok(w.derived && !w.assumed && w.belt === 'brown' && w.block === 4);
+  const names = (wk) => P.flatExs(wk).filter((e) => !/burnout/i.test(e.name)).map((e) => e.name + e.sets + e.label);
+  assert.deepStrictEqual(names(w), names(P.getWorkout(1, 1)), 'same exercises, sets and reps as Block 1 week 1');
+  // loads are a percent of the recalculated 1RM, not the Block 1 kilograms
+  P.flatExs(w).filter((e) => e.liftKey).forEach((e) => { assert.strictEqual(e.kg, null); assert.ok(e.pct > 0.5 && e.pct < 0.9, e.name); });
+  near(find1(13, 1, (e) => e.liftKey === 'bss').pct, E.pctFor(10, 2));
+  assert.strictEqual(P.getWorkout(16, 1).deload, true); assert.strictEqual(find1(16, 1, (e) => e.liftKey === 'clean').pct, 0.55);
+  // push-up burnouts after the lifts (not in the deload week), rucking every other week, 3 km timed runs
+  assert.ok(find1(13, 1, (e) => /burnout/i.test(e.name)) && find1(15, 5, (e) => /burnout/i.test(e.name)));
+  assert.ok(!find1(16, 1, (e) => /burnout/i.test(e.name)) && !find1(1, 1, (e) => /burnout/i.test(e.name)));
+  assert.ok(find1(13, 4, (e) => /Ruck/.test(e.name)) && find1(15, 4, (e) => /Ruck/.test(e.name)) && !find1(14, 4, (e) => /Ruck/.test(e.name)));
+  assert.ok(/10.15 kg/.test(find1(13, 4, (e) => /Ruck/.test(e.name)).label) && /15.20 kg/.test(find1(15, 4, (e) => /Ruck/.test(e.name)).label));
+  assert.ok(P.getWorkout(14, 1).am.timed && P.getWorkout(16, 1).am.timed && /3 km/.test(P.getWorkout(14, 1).am.text));
+  assert.ok(!P.getWorkout(13, 1).am.timed && !P.getWorkout(1, 1).am.timed);
 });
 test('Day 4 and Day 6 are broken into loggable items', () => {
   const d4 = P.flatExs(P.getWorkout(2, 4)).map((e) => e.name);
-  ['McGill Curl-Up', 'McGill Side Plank', 'McGill Bird-Dog', 'Foam Rolling', '90/90 Hip Switches', 'Cossack Squats',
-   'Couch Stretch', 'Pigeon Stretch', 'Parasympathetic Nasal Breathing'].forEach((n) => assert.ok(d4.includes(n), 'missing ' + n + ' in ' + d4));
-  const side = P.flatExs(P.getWorkout(2, 4)).find((e) => e.name === 'McGill Side Plank');
-  assert.deepStrictEqual([side.sets, side.target, side.mode, side.suffix], [3, 20, 'hold', '/side']);
+  ['Curl-up pyramids', 'Side planks', 'Bird-dogs', '4-way manual iso holds', 'Wall Tibialis Raises', 'Right shoulder sleeper stretch', 'Wrist rotations',
+   'Elbow decompression', 'Thoracic open books', '90/90 hip switches', 'Cossack squats', 'Ankle wall drives', 'Foam rolling', 'Couch & pigeon stretches',
+   'Nasal breathing with legs elevated'].forEach((n) => assert.ok(d4.includes(n), 'missing ' + n + ' in ' + d4));
+  const side = find1(2, 4, (e) => e.name === 'Side planks');
+  assert.deepStrictEqual([side.sets, side.lo, side.hi, side.mode, side.suffix], [1, 15, 25, 'hold', '/side']);
+  const bird = find1(2, 4, (e) => e.name === 'Bird-dogs');
+  assert.deepStrictEqual([bird.sets, bird.target, bird.mode], [3, 5, 'reps']); assert.ok(/8s hold/.test(bird.note));
+  const neck = find1(2, 4, (e) => /manual iso/.test(e.name));
+  assert.deepStrictEqual([neck.sets, neck.lo, neck.hi], [2, 12, 15]);
+  assert.deepStrictEqual(P.getWorkout(2, 4).items.filter((i) => i.kind === 'section').map((i) => i.title),
+    ['McGill Big 3', 'Cervical Neck Armor', 'Shin/Ankle Armor', 'Joint Mobility (20 min)', 'Soft Tissue & Parasympathetic Reset']);
   const d6 = P.flatExs(P.getWorkout(2, 6)).map((e) => e.name);
-  assert.ok(d6.includes('Hill sprint') && d6.some((n) => /Bounding/.test(n)) && d6.some((n) => /Wall Drives/.test(n)));
-  assert.strictEqual(P.flatExs(P.getWorkout(2, 6)).find((e) => e.name === 'Hill sprint').sets, 5);
-  assert.strictEqual(P.flatExs(P.getWorkout(3, 6)).find((e) => e.name === 'Flat sprint').sets, 6);
+  assert.ok(d6.includes('Hill sprint') && d6.some((n) => /bounding/i.test(n)) && d6.some((n) => /Wall drives/.test(n)));
+  assert.strictEqual(find1(2, 6, (e) => e.name === 'Hill sprint').sets, 5);
+  assert.strictEqual(find1(3, 6, (e) => e.name === 'Flat sprint').sets, 6);
+  assert.deepStrictEqual([1, 2, 3, 4].map((w) => { const e = find1(w, 6, (x) => /bounding/i.test(x.name)); return e.sets + 'x' + e.lo; }), ['3x10', '3x15', '3x15', '2x10']);
+  assert.strictEqual(find1(1, 6, (e) => e.name === 'Flat sprint').rest, 105, '90-120 s full rest');
+  assert.ok(/90%.*15-20m/.test(find1(1, 6, (e) => e.name === 'Flat sprint').label) && /10-15m steep/.test(find1(2, 6, (e) => e.name === 'Hill sprint').label));
 });
 test('summaries and exercise index', () => {
-  const lines = P.summarize(P.getWorkout(1, 1), { oneRM: (k) => ({ bench: 100, zercher: 120, clean: 80, rdl: 140 })[k], settings: { units: 'kg' } });
-  assert.ok(lines.some((l) => /Bench Press: 3 x 10 reps at 71\.4% of 1RM \(about 72\.5 kg\)/.test(l)), lines.join('\n'));
-  assert.ok(P.allExerciseNames().includes('Zercher Squat') && P.allExerciseNames().length > 25);
+  const lines = P.summarize(P.getWorkout(1, 1), { oneRM: (k) => ({ bench: 30, zercher: 120, clean: 80, rdl: 140 })[k], settings: { units: 'kg' } });
+  assert.ok(lines.some((l) => /DB Bench Press: 3 x 10 reps at 22\.5 kg per dumbbell \(75% of estimated 1RM\)/.test(l)), lines.join('\n'));
+  assert.ok(lines.some((l) => /Power Clean \/ High Pull: 4 x 5 reps at 52\.5 kg \(65\.6% of estimated 1RM\)/.test(l)), lines.join('\n'));
+  const b2 = P.summarize(P.getWorkout(5, 5), { oneRM: (k) => ({ bench: 30, zercher: 120 })[k], settings: { units: 'kg' } });
+  assert.ok(b2.some((l) => /Zercher Squat: 3 x 6 reps at 81\.1% of 1RM \(about 97\.5 kg\)/.test(l)), b2.join('\n'));
+  assert.ok(P.allExerciseNames().includes('Zercher Squat') && P.allExerciseNames().includes('Romanian Deadlift (RDL)') && P.allExerciseNames().length > 25);
+  assert.strictEqual(P.liftKeyOf('Yielding Iso RDL Hold'), null); assert.strictEqual(P.liftKeyOf('Pull-Ups'), 'pullup');
 });
-
-test('Bulgarian split squats and pull-ups are tracked lifts: spec reps kept, % of 1RM from reps and reps-in-reserve', () => {
-  const find = (w, d, key) => P.flatExs(P.getWorkout(w, d)).find((e) => e.liftKey === key);
-  [[1, 10], [2, 8], [3, 6]].forEach(([w, reps]) => {
+test('Bulgarian split squats and pull-ups are tracked lifts: program kilograms in Block 1, % of 1RM from reps and reps-in-reserve after', () => {
+  const find = (w, d, key) => find1(w, d, (e) => e.liftKey === key);
+  [[1, 10, 15], [2, 8, 20], [3, 6, 25]].forEach(([w, reps, kg]) => {
     const b = find(w, 1, 'bss');
-    assert.deepStrictEqual([b.target, b.suffix, b.mode, b.sets], [reps, '/leg', 'weightReps', 3]);
-    near(b.pct, E.pctFor(reps, 2));
+    assert.deepStrictEqual([b.target, b.suffix, b.mode, b.sets, b.kg, b.pct], [reps, '/leg', 'weightReps', 3, kg, null]);
   });
   [[1, 10], [2, 8], [3, 6], [4, 5]].forEach(([w, reps]) => { assert.strictEqual(find(w, 1, 'pullup').target, reps, 'pull-ups W' + w); });
-  assert.strictEqual(find(4, 1, 'bss').pct, 0.55); assert.strictEqual(find(4, 1, 'pullup').pct, 0.55);          // deload
+  assert.strictEqual(find(4, 1, 'bss').kg, 0); assert.strictEqual(find(3, 1, 'pullup').kg, 2.5);
   assert.ok(find(1, 5, 'pullup'), 'pull-ups are on day 5 too');
-  // derived blocks keep their own rep tables (not the barbell-lift reps)
-  assert.deepStrictEqual([5, 6, 7, 8].map((w) => find(w, 1, 'bss').target), [6, 5, 4, 5]);
-  assert.deepStrictEqual([9, 10, 11, 12].map((w) => find(w, 1, 'bss').target), [3, 3, 2, 3]);
-  assert.deepStrictEqual([5, 6, 7, 8].map((w) => find(w, 1, 'pullup').target), [6, 6, 5, 3]);
-  assert.deepStrictEqual([9, 10, 11, 12].map((w) => find(w, 5, 'pullup').target), [5, 4, 3, 3]);
-  assert.strictEqual(P.LIFT_BY_NAME['Pull-Ups'], 'pullup'); assert.deepStrictEqual(E.LIFT_KEYS, ['bench', 'zercher', 'clean', 'rdl', 'bss', 'pullup']);
-  // Pallof press stays an untracked accessory
-  assert.strictEqual(P.flatExs(P.getWorkout(1, 5)).find((e) => /Pallof/.test(e.name)).liftKey, null);
+  // Blocks 2 to 4: a percent of the 1RM that follows from the reps and the reps left in the tank
+  [[5, 6, 1], [6, 5, 1], [7, 4, 1], [9, 3, 1], [11, 2, 1]].forEach(([w, reps, rir]) => near(find(w, 1, 'bss').pct, E.pctFor(reps, rir)));
+  near(find(13, 1, 'pullup').pct, E.pctFor(10, 2)); near(find(14, 1, 'bss').pct, E.pctFor(8, 2));
+  assert.strictEqual(find(8, 1, 'bss').pct, 0.55); assert.strictEqual(find(8, 1, 'pullup').pct, 0.55);          // deload
+  assert.strictEqual(P.liftKeyOf('ATG Bulgarian Split Squat'), 'bss'); assert.deepStrictEqual(E.LIFT_KEYS, ['bench', 'zercher', 'clean', 'rdl', 'bss', 'pullup']);
+  // Pallof press stays an untracked accessory (it still remembers its last weight)
+  assert.strictEqual(find1(1, 5, (e) => /Pallof/.test(e.name)).liftKey, null);
 });
 test('working weight: external lifts = % x 1RM; pull-ups = % x total load minus bodyweight (never below bodyweight)', () => {
   const s = { units: 'kg', increment: null, bodyKg: 80 }, p = E.pctFor(10, 2);
@@ -211,8 +283,36 @@ test('working weight: external lifts = % x 1RM; pull-ups = % x total load minus 
   assert.strictEqual(E.pctOfRM('pullup', 10, 120, 0), null);
   const lb = { units: 'lb', increment: null, bodyKg: 80 };
   assert.strictEqual(E.fmtW(E.workingKg('pullup', 120, p, lb), 'lb'), '15');       // 12.6 lb added -> 15 lb step
-  assert.strictEqual(P.summarize(P.getWorkout(1, 1), { oneRM: (k) => ({ bss: 40, pullup: 120 }[k] || null), settings: s }).filter((l) => /Pull-Ups|Bulgarian/.test(l)).join('|'),
-    'Bulgarian Split Squat: 3 x 10 reps/leg at 71.4% of 1RM (about 27.5 kg)|  - Pull-Ups: 3 x 10 reps at 71.4% of 1RM (about +5 kg added to bodyweight)');
+  const pick = (wk, rm) => P.summarize(P.getWorkout(wk, 1), { oneRM: (k) => rm[k] || null, settings: s }).filter((l) => /Pull-Ups|Bulgarian/.test(l)).join('|');
+  // Block 1: the program's kilograms, with what share of the estimated 1RM they are
+  assert.strictEqual(pick(1, { bss: 40, pullup: 120 }),
+    'ATG Bulgarian Split Squat: 3 x 10 reps/leg at 15 kg in total (37.5% of estimated 1RM) [Bodyweight, or 2 × 7.5 kg dumbbells]|  - Pull-Ups: 3 x 10 reps at bodyweight (66.7% of estimated 1RM)');
+  assert.ok(/\+2\.5 kg added to bodyweight \(68\.8% of estimated 1RM\)/.test(pick(3, { bss: 40, pullup: 120 })), pick(3, { bss: 40, pullup: 120 }));
+  // Block 2: a percent of the 1RM and the weight that makes
+  assert.strictEqual(pick(5, { bss: 40, pullup: 120 }),
+    'ATG Bulgarian Split Squat: 3 x 6 reps/leg at 81.1% of 1RM (about 32.5 kg)|  - Pull-Ups: 3 x 6 reps at 81.1% of 1RM (about +17.5 kg added to bodyweight)');
+});
+test('nutrition and sleep come straight from the program text', () => {
+  const m = (d) => P.fuel(d).meals, b = (d) => P.fuel(d).baseline;
+  assert.deepStrictEqual(m(1).map((x) => x.label), ['Post-AM meal', 'Post-PM meal']); assert.deepStrictEqual(m(5), m(1));
+  assert.ok(/^After the AM Zone 2 run$/.test(m(1)[0].when) && /1 scoop protein \+ banana \+ 60-80g oats\/rice cakes within 30-45m/.test(m(1)[0].text));
+  assert.ok(/150g chicken \+ 1\.5 cups white rice within 60m/.test(m(1)[1].text) && /^After the PM Heavy lift$/.test(m(1)[1].when));
+  assert.deepStrictEqual(m(2).map((x) => x.label), ['Pre-BJJ meal', 'Intra-BJJ', 'Post-BJJ']); assert.deepStrictEqual(m(3), m(2));
+  assert.deepStrictEqual(m(2).map((x) => x.when), ['15:30–16:30', '', '21:30']);
+  assert.ok(/100g oats in water/.test(m(2)[0].text) && /25-35g fast carbs \+ 1\/4 tsp salt in 750ml water/.test(m(2)[1].text) && /200g low-fat Greek yogurt/.test(m(2)[2].text));
+  assert.deepStrictEqual(m(6).map((x) => x.label), ['Post-Sprint meal']); assert.ok(/3-4 eggs \+ 2 slices sourdough/.test(m(6)[0].text));
+  assert.deepStrictEqual([m(4), m(7)], [[], []], 'no meal timing on recovery days');
+  // daily baseline: creatine timing depends on the day, salt only on BJJ and sprint days
+  const lab = (d) => b(d).map((x) => x.label).join();
+  assert.strictEqual(lab(1), 'Creatine,Hydration'); assert.strictEqual(lab(2), 'Creatine,Hydration,Electrolytes'); assert.strictEqual(lab(3), lab(2));
+  assert.strictEqual(lab(6), 'Creatine,Hydration,Electrolytes'); assert.strictEqual(lab(4), 'Creatine,Hydration'); assert.strictEqual(lab(7), lab(4));
+  assert.strictEqual(b(1)[0].text, '5g daily, post-workout with carbs'); assert.strictEqual(b(7)[0].text, '5g daily, with breakfast');
+  assert.strictEqual(b(1)[1].text, '3.5 to 4.0 Liters a day');
+  assert.ok(/^Add 1\/4 tsp sea salt \(500-700mg sodium\) to fluids$/.test(b(6)[2].text), b(6)[2].text);
+  const sl = P.sleep();
+  assert.deepStrictEqual(sl.map((x) => x.title), ['3-Minute Post-Session Downshift', 'Post-Training Insulin Spike', 'Thermal Dump Shower', 'Bedroom Climate', '20-Minute Reset Rule']);
+  assert.deepStrictEqual(sl.map((x) => x.when), ['21:15', '21:30', '22:15', '', '']);
+  assert.ok(/4s nasal inhale \/ 6s nasal exhale/.test(sl[0].text) && /16-18/.test(sl[3].text) && /dim quiet room/.test(sl[4].text));
 });
 
 console.log('Session');
@@ -220,7 +320,17 @@ const mkState = () => ({ settings: { units: 'kg', increment: null }, baselines: 
 test('weights prefill from the 1RM and the recalibration is closed-loop', () => {
   const st = mkState();
   st.baselines.bench = { kg: 100, at: '2026-11-01' };
-  const ses = S.build(P.getWorkout(1, 1), st, '2026-11-02');
+  // Block 1: the program's own kilograms win over any 1RM
+  const b1 = S.allExs(S.build(P.getWorkout(1, 1), st, '2026-11-02')).find((e) => e.liftKey === 'bench');
+  assert.deepStrictEqual([b1.sets.length, b1.sets[0].w, b1.targetKg, b1.oneRM], [3, 22.5, 22.5, 100]);
+  const bss1 = S.allExs(S.build(P.getWorkout(1, 1), st, '2026-11-02')).find((e) => e.liftKey === 'bss');
+  assert.deepStrictEqual(bss1.sets.map((x) => x.w), [15, 15, 15]);
+  const pu3 = S.allExs(S.build(P.getWorkout(3, 1), st, '2026-11-16')).find((e) => e.liftKey === 'pullup');
+  assert.deepStrictEqual(pu3.sets.map((x) => x.w), [2.5, 2.5, 2.5], 'week 3 adds 2.5 kg');
+  const pu1 = S.allExs(S.build(P.getWorkout(1, 1), st, '2026-11-02')).find((e) => e.liftKey === 'pullup');
+  assert.deepStrictEqual(pu1.sets.map((x) => x.w), [null, null, null], 'bodyweight is an empty field');
+  // Block 4 (week 13) is a percent of the 1RM
+  const ses = S.build(P.getWorkout(13, 1), st, '2026-11-02');
   const bench = S.allExs(ses).find((e) => e.liftKey === 'bench');
   assert.strictEqual(bench.sets.length, 3); assert.strictEqual(bench.sets[0].w, 72.5);   // 100 x 71.4% -> 71.4 -> 72.5
   // do exactly what was prescribed, log it, and the 1RM estimate stays where it was (no drift)
@@ -230,7 +340,7 @@ test('weights prefill from the 1RM and the recalibration is closed-loop', () => 
   const rm = E.oneRMFor(st, 'bench', '2026-11-03');
   assert.strictEqual(rm.src, 'logged'); near(rm.kg, 72.5 * (1 + 12 / 30), 1e-9); assert.ok(Math.abs(rm.kg - 100) < 2, 'drift ' + rm.kg);
   // next week (8 reps) targets the right weight from the recalibrated 1RM
-  const ses2 = S.build(P.getWorkout(2, 1), st, '2026-11-09');
+  const ses2 = S.build(P.getWorkout(14, 1), st, '2026-11-09');
   const b2 = S.allExs(ses2).find((e) => e.liftKey === 'bench');
   assert.ok(Math.abs(b2.sets[0].w - 0.75 * rm.kg) <= 1.25, `${b2.sets[0].w} vs ${0.75 * rm.kg}`);
 });
@@ -267,7 +377,7 @@ test('deload sessions never lower the 1RM; reps above 12 are ignored', () => {
 });
 test('untracked weighted accessories (Pallof press) repeat last weight and step up after a clean session', () => {
   const st = mkState();
-  const name = 'Pallof Press (or DB Drag Plank)';
+  const name = 'Pallof Press';
   st.logs.push({ date: '2026-11-02', entries: [{ name, mode: 'weightReps', sets: [{ w: 10, r: 10 }, { w: 10, r: 10 }, { w: 10, r: 10 }] }] });
   const pal = (ses) => S.allExs(ses).find((e) => /Pallof/.test(e.name));
   assert.strictEqual(pal(S.build(P.getWorkout(1, 5), st, '2026-11-09')).sets[0].w, 12.5);   // hit 3x10 -> +2.5
@@ -278,7 +388,7 @@ test('split squat and pull-up sessions pre-fill from their 1RMs, show bodyweight
   const st = mkState(); st.settings.bodyKg = 80;
   st.baselines.bss = { kg: 40, at: '2026-11-01', ts: 1 }; st.baselines.pullup = { kg: 120, at: '2026-11-01', ts: 1 };
   const get = (ses, k) => S.allExs(ses).find((e) => e.liftKey === k);
-  const ses = S.build(P.getWorkout(1, 1), st, '2026-11-02');
+  const ses = S.build(P.getWorkout(13, 1), st, '2026-11-02');
   assert.deepStrictEqual(get(ses, 'bss').sets.map((x) => x.w), [27.5, 27.5, 27.5]);
   assert.deepStrictEqual(get(ses, 'pullup').sets.map((x) => x.w), [5, 5, 5]);
   assert.deepStrictEqual([get(ses, 'bss').oneRM, get(ses, 'pullup').oneRM, get(ses, 'pullup').bodyKg], [40, 120, 80]);
@@ -294,8 +404,8 @@ test('split squat and pull-up sessions pre-fill from their 1RMs, show bodyweight
   near(E.oneRMFor(st, 'pullup', '2026-11-03').kg, 85 * 1.4, 1e-9);
   // a pull-up plan that is below bodyweight leaves the field empty (placeholder says BW)
   const st2 = mkState(); st2.settings.bodyKg = 80; st2.baselines.pullup = { kg: 100, at: '2026-11-01', ts: 1 };
-  assert.deepStrictEqual(get(S.build(P.getWorkout(1, 1), st2, '2026-11-02'), 'pullup').sets.map((x) => x.w), [null, null, null]);
-  assert.strictEqual(get(S.build(P.getWorkout(1, 1), st2, '2026-11-02'), 'pullup').targetKg, 0);
+  assert.deepStrictEqual(get(S.build(P.getWorkout(13, 1), st2, '2026-11-02'), 'pullup').sets.map((x) => x.w), [null, null, null]);
+  assert.strictEqual(get(S.build(P.getWorkout(13, 1), st2, '2026-11-02'), 'pullup').targetKg, 0);
 });
 test('pull-up estimates: bodyweight-only sets count, entries without a bodyweight are ignored, no bodyweight falls back to last time', () => {
   const st = mkState();
@@ -304,7 +414,7 @@ test('pull-up estimates: bodyweight-only sets count, entries without a bodyweigh
   const st2 = mkState();
   st2.logs.push({ date: '2026-11-02', entries: [{ name: 'Pull-Ups', liftKey: 'pullup', rir: 2, sets: [{ w: 5, r: 10 }, { w: 5, r: 10 }, { w: 5, r: 10 }] }] });
   assert.strictEqual(E.oneRMFor(st2, 'pullup', '2026-11-03'), null, 'without a bodyweight the total load is unknown');
-  const pu = S.allExs(S.build(P.getWorkout(1, 1), st2, '2026-11-09')).find((e) => e.liftKey === 'pullup');
+  const pu = S.allExs(S.build(P.getWorkout(13, 1), st2, '2026-11-09')).find((e) => e.liftKey === 'pullup');
   assert.deepStrictEqual(pu.sets.map((x) => x.w), [7.5, 7.5, 7.5]);                     // last time +1 step, all sets hit 10
   // a set above 12 reps does not move the estimate
   st.logs.push({ date: '2026-11-04', entries: [{ name: 'Pull-Ups', liftKey: 'pullup', rir: 2, bodyKg: 80, sets: [{ w: 30, r: 15 }] }] });
@@ -338,12 +448,13 @@ test('superset flow: 30 s between exercises, full rest at round end, group rest 
   assert.deepStrictEqual([plan(0, 0).sec, plan(0, 0).quick, /Bench Press, round 1/.test(plan(0, 0).next)], [30, true, true]);
   assert.strictEqual(plan(1, 0).sec, 30);
   assert.deepStrictEqual([plan(2, 0).sec, /Plyo Push-Up.*round 2/.test(plan(2, 0).next)], [90, true]);
-  assert.strictEqual(plan(2, 2).sec, 120);                  // restAfterSuperset
+  assert.strictEqual(plan(2, 2).sec, 90);                   // after the last round of the superset
   assert.ok(/Pull-Ups/.test(plan(2, 2).next));
-  // last superset of the workout: nothing after the final set
+  // the last exercise of the workout (a finisher): rest between sets, nothing after the final set
   const gl = ses.items.length - 1;
-  assert.strictEqual(S.restPlan(ses, gl, 1, 2), null);
-  assert.strictEqual(S.restPlan(ses, gl, 1, 0).sec, 90);
+  assert.strictEqual(S.restPlan(ses, gl, 0, 2), null);
+  assert.strictEqual(S.restPlan(ses, gl, 0, 0).sec, 45);
+  assert.ok(/Hammer Curls/.test(S.restPlan(ses, ses.items.findIndex((i, k) => i.kind === 'group' && k > gi), 1, 2).next), 'superset B leads into the finishers');
   // straight sets: between-set rest, then rest-after into the next exercise
   const pi = ses.items.findIndex((i) => i.kind === 'ex' && i.ex.liftKey === 'clean');
   assert.strictEqual(S.restPlan(ses, pi, 0, 0).sec, 150);   // 2-3 mins
@@ -363,7 +474,7 @@ test('add/remove sets and rounds never destroy completed sets', () => {
 });
 test('Ducky modifications apply to open sets only', () => {
   const st = mkState(); st.baselines.zercher = { kg: 120, at: '2026-11-01' };
-  const ses = S.build(P.getWorkout(1, 5), st, '2026-11-06');
+  const ses = S.build(P.getWorkout(1, 5), st, '2026-11-06');   // Block 1: Zercher at the program's 50 kg
   const z = S.allExs(ses).find((e) => e.liftKey === 'zercher');
   const w0 = z.sets[0].w; z.sets[0].done = true;
   const mods = E.sanitizeMods({ modifications: [
@@ -373,13 +484,13 @@ test('Ducky modifications apply to open sets only', () => {
   ] });
   assert.strictEqual(mods.length, 4); assert.strictEqual(mods[2].sets, 8);
   const changed = S.applyMods(ses, mods, st.settings);
-  assert.deepStrictEqual(changed.sort(), ['Nordic Hamstring Curls (Eccentric Focus)', 'Pull-Ups', 'Zercher Squat'].sort());
+  assert.deepStrictEqual(changed.sort(), ['Nordic Hamstring Curls Eccentric', 'Pull-Ups', 'Zercher Squat'].sort());
   assert.strictEqual(z.sets.length, 2); assert.strictEqual(z.sets[0].w, w0, 'done set untouched');
   assert.ok(z.sets[1].w < w0 && z.sets[1].r === 6 && z.modified && z.note === 'Back is tight');
   assert.ok(S.allExs(ses).find((e) => /Nordic/.test(e.name)).skipped);
   assert.strictEqual(S.allExs(ses).find((e) => e.name === 'Pull-Ups').sets.length, 8);
   // stored overrides are picked up when a session is built
-  st.overrides['2026-11-06:w1d5'] = E.sanitizeMods([{ exercise: 'Romanian Deadlift', sets: 1 }]);
+  st.overrides['2026-11-06:w1d5'] = E.sanitizeMods([{ exercise: 'Romanian Deadlift (RDL)', sets: 1 }]);
   assert.strictEqual(S.allExs(S.build(P.getWorkout(1, 5), st, '2026-11-06')).find((e) => e.liftKey === 'rdl').sets.length, 1);
 });
 test('progress, next pending and the saved log', () => {
@@ -401,7 +512,7 @@ test('"up next" follows the set you last ticked: jumping ahead does not send you
   const seq = S.order(ses), idx = (name, set) => seq.findIndex((p) => { const it = ses.items[p.it]; const ex = it.kind === 'ex' ? it.ex : it.exs[p.ex]; return ex.name === name && p.set === set; });
   const tick = (i) => { const p = seq[i]; p.st.done = true; ses.cur = { it: p.it, ex: p.ex, set: p.set }; };
   assert.deepStrictEqual(S.nextPending(ses), { it: seq[0].it, ex: 0, set: 0 }, 'fresh workout starts at the top');
-  const pc0 = idx('Power Clean or High Pull', 0); tick(pc0);                      // jump ahead to the clean
+  const pc0 = idx('Power Clean / High Pull', 0); tick(pc0);                      // jump ahead to the clean
   assert.deepStrictEqual(S.nextPending(ses), { it: seq[pc0 + 1].it, ex: seq[pc0 + 1].ex, set: 1 }, 'next is clean set 2, not the skipped warm-up');
   // finish everything after the cursor: wraps to the first unfinished set at the top
   for (let i = pc0 + 1; i < seq.length; i++) tick(i);

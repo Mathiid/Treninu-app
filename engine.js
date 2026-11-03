@@ -91,6 +91,10 @@
   // what fraction of the 1RM a typed weight really is (null when unknown)
   function pctOfRM(key, w, rmKg, bw) { var l = loadKg(key, w, bw); return l > 0 && rmKg > 0 ? l / rmKg : null; }
 
+  // A weight written in the program in kilograms (Block 1), as you would load it: unchanged in kg; in pounds it is rounded to your
+  // plate step (22.5 kg is 49.6 lb, which you load as 50 lb). Zero stays zero (bodyweight).
+  function fixedKg(kg, s) { return s && s.units === 'lb' && kg > 0 ? roundWeightKg(kg, s) : kg; }
+
   /* ------------------------------------------------------------------ units */
   function incOf(s) { return s.increment > 0 ? +s.increment : (s.units === 'lb' ? 5 : 2.5); }
   function toDisp(kg, units) { return units === 'lb' ? kgToLb(kg) : kg; }
@@ -384,7 +388,7 @@
     nextMondayISO: nextMondayISO, position: position, dateFor: dateFor,
     epley: epley, e1rmAdj: e1rmAdj, pctFor: pctFor, rirFor: rirFor,
     LIFT_KEYS: LIFT_KEYS, bodyKg: bodyKg, loadKg: loadKg, workingKg: workingKg, pctOfRM: pctOfRM,
-    incOf: incOf, toDisp: toDisp, toKg: toKg, roundWeightKg: roundWeightKg, fmtNum: fmtNum, fmtW: fmtW,
+    fixedKg: fixedKg, incOf: incOf, toDisp: toDisp, toKg: toKg, roundWeightKg: roundWeightKg, fmtNum: fmtNum, fmtW: fmtW,
     parseRest: parseRest, parseTarget: parseTarget, fmtTarget: fmtTarget,
     maxHR: maxHR, zone2: zone2, zone2Text: zone2Text,
     normName: normName, bestE1RMOfLog: bestE1RMOfLog, e1rmPoints: e1rmPoints, oneRMFor: oneRMFor,

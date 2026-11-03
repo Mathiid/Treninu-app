@@ -28,7 +28,7 @@
         units: 'kg', increment: null, startDate: E.nextMondayISO(today),
         age: null, rhr: null, mhr: null, mhrFormula: 'classic', hrMethod: 'karvonen', zoneLo: 60, zoneHi: 70,
         autoRest: true, sound: true, vibrate: true, notify: true, wakeLock: true, includeRest: true,
-        geminiModel: 'gemini-2.5-flash', paceUnit: 'km', race: null, hrCue: true, gcalClientId: '', timesAt: 0,
+        geminiModel: 'gemini-3.8-flash', bodyKg: 70, paceUnit: 'km', race: null, hrCue: true, gcalClientId: '', timesAt: 0,
         times: { am: '07:00', amDur: 45, pm: '17:30', pmDur: 90, recovery: '18:00', recDur: 60, sprint: '10:00', sprDur: 75, bjjStart: '19:00', bjjEnd: '21:00' }
       },
       baselines: {}, logs: [], marks: {}, overrides: {}, active: null, chat: [],
@@ -53,6 +53,8 @@
     if (!isObj(s.sched)) s.sched = {};
     if (!isObj(s.gcal)) s.gcal = defaults().gcal;
     if (!isObj(s.gcal.snap)) s.gcal.snap = {};
+    // Ducky runs on gemini-3.8-flash. A saved older Gemini model (1.5, 2.x) is moved up to it; a model you typed yourself is left alone.
+    if (!s.settings.geminiModel || /^gemini-(1\.\d+|2\.\d+)-(flash|pro)/i.test(String(s.settings.geminiModel))) s.settings.geminiModel = 'gemini-3.8-flash';
     if (!/^\d{4}-\d{2}-\d{2}$/.test(s.settings.startDate || '')) s.settings.startDate = E.nextMondayISO(E.isoDate(new Date()));
     return s;
   }

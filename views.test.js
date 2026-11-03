@@ -9,7 +9,11 @@ const root = __dirname;
 const HA = globalThis.HA, V = HA.views, A = HA.actions, P = HA.program, E = HA.engine, SS = HA.session;
 
 let passed = 0, failed = 0;
-function test(name, fn) { try { fn(); passed++; console.log('  ok   ' + name); } catch (e) { failed++; console.log('  FAIL ' + name + '\n       ' + (e.stack || e).split('\n').slice(0, 4).join('\n       ')); } }
+const pending = [];
+function test(name, fn) {
+  const done = (e) => { if (e) { failed++; console.log('  FAIL ' + name + '\n       ' + (e.stack || e).split('\n').slice(0, 4).join('\n       ')); } else { passed++; console.log('  ok   ' + name); } };
+  try { const r = fn(); if (r && typeof r.then === 'function') pending.push(r.then(() => done(), done)); else done(); } catch (e) { done(e); }
+}
 
 const VOID = new Set(['br', 'hr', 'img', 'input', 'meta', 'link', 'path0']);
 const SELF_SVG = /<(path|circle|rect|line|polyline|polygon|ellipse)\b[^>]*\/?>/g;
@@ -117,6 +121,11 @@ test('Live workout: sub-line shows a set count, never an object', () => {
 test('split squat and pull-up cards show their weight as a percentage of the estimated 1RM, and follow what you type', () => {
   const S = mkState({ bodyKg: 80 }); S.baselines.bss = { kg: 40, at: '2026-11-01', ts: 1 }; S.baselines.pullup = { kg: 120, at: '2026-11-01', ts: 1 };
   A.startWorkout(S, 1, 1, '2026-11-02');
+  const t1 = V.workout(ctx(S)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');       // Block 1: the program's own kilograms, shown against the 1RM
+  assert.ok(/ATG Bulgarian Split Squat 3 × 10 reps\/leg, 15 kg in total 15 kg = 37\.5% of estimated 1RM 40 kg/.test(t1), t1.match(/Bulgarian.{0,160}/)[0]);
+  assert.ok(/Pull-Ups 10 reps, bodyweight Bodyweight 80 kg = 66\.7% of estimated 1RM 120 kg total/.test(t1), t1.match(/Pull-Ups.{0,160}/)[0]);
+  assert.ok(/DB Bench Press 10 reps, 22\.5 kg each/.test(t1), t1.match(/DB Bench.{0,100}/)[0]);
+  A.startWorkout(S, 13, 1, '2026-11-02');                                            // Block 4: a percent of the 1RM
   const html = V.workout(ctx(S)), text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
   assert.ok(/Bulgarian Split Squat 3 × 10 reps\/leg, 71\.4% of 1RM 27\.5 kg = 68\.8% of estimated 1RM 40 kg/.test(text), text.match(/Bulgarian.{0,160}/)[0]);
   assert.ok(/Pull-Ups 10 reps, 71\.4% of 1RM \+5 kg added = 70\.8% of estimated 1RM 120 kg total/.test(text), text.match(/Pull-Ups.{0,160}/)[0]);
@@ -127,16 +136,16 @@ test('split squat and pull-up cards show their weight as a percentage of the est
   const pu = SS.allExs(S.active).find((e) => e.liftKey === 'pullup'); pu.sets[0].w = null;
   assert.strictEqual(V.rmLine(ctx(S), pu, 0), 'Bodyweight 80 kg = 66.7% of estimated 1RM 120 kg total');
   // no 1RM / no bodyweight: say what to do, never NaN
-  const S2 = mkState(); A.startWorkout(S2, 1, 1, '2026-11-02');
+  const S2 = mkState({ bodyKg: null }); A.startWorkout(S2, 13, 1, '2026-11-02');
   const t2 = V.workout(ctx(S2)).replace(/<[^>]*>/g, ' ');
   assert.ok(/Add your bodyweight in Settings to see pull-up percentages/.test(t2) && /Set your Bulgarian Split Squat 1RM on the Lifts tab/.test(t2));
   // pounds
-  const S3 = mkState({ bodyKg: 80, units: 'lb' }); S3.baselines.pullup = { kg: 120, at: '2026-11-01', ts: 1 }; A.startWorkout(S3, 1, 1, '2026-11-02');
+  const S3 = mkState({ bodyKg: 80, units: 'lb' }); S3.baselines.pullup = { kg: 120, at: '2026-11-01', ts: 1 }; A.startWorkout(S3, 13, 1, '2026-11-02');
   assert.ok(/\+15 lb added = 72\.3% of estimated 1RM 264\.6 lb total/.test(V.workout(ctx(S3)).replace(/<[^>]*>/g, ' ')), V.workout(ctx(S3)).replace(/<[^>]*>/g, ' ').match(/Pull-Ups.{0,200}/)[0]);
 });
 test('Lifts tab: six lifts, pull-up needs a bodyweight, Settings has the bodyweight field and the calculator offers every lift', () => {
-  const S = mkState(); const h = V.lifts(ctx(S, { tab: 'lifts' }));
-  ['Bench Press', 'Zercher Squat', 'Power Clean', 'Romanian Deadlift', 'Bulgarian Split Squat', 'Pull-up'].forEach((n) => assert.ok(h.indexOf('<h2>' + n + '</h2>') > 0, n));
+  const S = mkState({ bodyKg: null }); const h = V.lifts(ctx(S, { tab: 'lifts' }));
+  ['DB Bench Press (each dumbbell)', 'Zercher Squat', 'Power Clean', 'Romanian Deadlift', 'Bulgarian Split Squat', 'Pull-up'].forEach((n) => assert.ok(h.indexOf('<h2>' + n + '</h2>') > 0, n));
   assert.ok(/data-act="goto-settings" data-focus="bw"/.test(h), 'pull-up card asks for a bodyweight');
   assert.ok(/<option value="pullup">Pull-up<\/option>/.test(h) && /<option value="bss">/.test(h));
   const S2 = mkState({ bodyKg: 80 }); S2.baselines.pullup = { kg: 120, at: '2026-11-01', ts: 1 };
@@ -144,10 +153,12 @@ test('Lifts tab: six lifts, pull-up needs a bodyweight, Settings has the bodywei
   assert.ok(!/data-focus="bw"/.test(h2));
   assert.ok(/Bodyweight 80 \+ 40 kg added/.test(t2) && /120 kg total 1RM/.test(t2), t2.match(/Pull-up.{0,200}/)[0]);
   assert.ok(/\+5 4×10 71\.4%/.test(t2) || /\+5 3×10 71\.4%/.test(t2), 'projection shows added weight, sets x reps and the percentage: ' + (t2.match(/W1 .{0,80}/) || [''])[0]);
+  assert.ok(/W1 3×10 BW|BW 3×10 66\.7%/.test(t2) || /BW 3×10 66\.7%/.test(t2), 'Block 1 pull-ups read as bodyweight with their share of the 1RM: ' + (t2.match(/Pull-up.{0,400}/) || [''])[0]);
   const st = V.settings(ctx(S2, { tab: 'settings' }));
   assert.ok(/data-set="bodyKg" data-type="num" value="80"/.test(st), 'bodyweight field');
   assert.ok(/Type the total, or type \+ and the weight you added/.test(V.oneRMSheet(ctx(S2), 'pullup')));
   assert.ok(/Add your bodyweight in Settings first/.test(V.oneRMSheet(ctx(S), 'pullup')));
+  assert.strictEqual(HA.store.defaults().settings.bodyKg, 70, 'the program profile is 70 kg, so pull-up percentages work from the first screen');
 });
 test('Checklist rows have no empty column header', () => {
   const S = mkState(); A.startWorkout(S, 1, 1, '2026-11-02');
@@ -255,7 +266,7 @@ test('the week sheet: one Google Calendar link per session, the whole week as on
   assert.strictEqual(new Set(hrefs.map((x) => x.k)).size, 10, 'each row has its own key');
   const lift = hrefs.find((x) => /PM/.test(x.u.searchParams.get('text')) && /W1 D1/.test(x.u.searchParams.get('text')));
   assert.strictEqual(lift.u.searchParams.get('dates'), '20261102T173000/20261102T190000');
-  assert.ok(/Bench Press: 3 x 10 reps at 71\.4% of 1RM \(71\.[0-9] kg\)|Bench Press[^\n]*71\.4%/.test(lift.u.searchParams.get('details')), 'the workout, with this person\'s weights, is in the notes: ' + lift.u.searchParams.get('details').split('\n')[5]);
+  assert.ok(/DB Bench Press: 3 x 10 reps at 22\.5 kg per dumbbell \(22\.5% of estimated 1RM\)/.test(lift.u.searchParams.get('details')), 'the workout, with this person\'s weights, is in the notes: ' + lift.u.searchParams.get('details'));
   const rest = hrefs.find((x) => x.u.searchParams.get('text') === 'W1 D7 \u2013 Rest'); assert.strictEqual(rest.u.searchParams.get('dates'), '20261108/20261109', 'rest days are all-day');
   const whole = hrefs[hrefs.length - 1]; assert.strictEqual(whole.u.searchParams.get('dates'), '20261102/20261109'); assert.ok(/Week 1/.test(whole.u.searchParams.get('text')) && /W1 D5 \u2013 PM/.test(whole.u.searchParams.get('details')));
   assert.ok(/data-act="cal-week-nav" data-w="0" disabled/.test(h) && /data-act="cal-week-nav" data-w="2"/.test(h) && !/data-w="2" disabled/.test(h), 'week 1 has no previous week');
@@ -295,6 +306,70 @@ test('Settings: pace section, Google Calendar block in every state, setup steps 
   assert.ok(/Syncing: 40 of 144/.test(V.gcalStatus(ctx(S, { gcal: gstat({ busy: true, prog: '40 of 144' }) }))));
   const lb = mkState({ age: 30, rhr: 55, paceUnit: 'mi', race: { km: 8.047, sec: 2400 } }); HA.actions.addRun(lb, { date: '2026-11-01', km: 10, sec: 3700, hr: 138 }, 'manual');
   const hl = V.settings(ctx(lb, { tab: 'settings', gcal: gstat() })); check(hl, 'miles'); assert.ok(/\/mi/.test(hl) && /Race distance \(mi\)/.test(hl) && /data-act="run-del"/.test(hl));
+});
+
+console.log('Program manual, Ducky');
+test('Fuel and Sleep cards: meals from the nutrition manual on training days, the sleep blueprint on BJJ days and in the Program tab', () => {
+  const S = mkState();
+  const day = (w, d) => V.today(ctx(S, { view: { week: w, day: d }, gcal: { off: true, on: false } }));
+  const txt = (h) => h.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  const d1 = day(1, 1), t1 = txt(d1);
+  assert.ok(/class="card fuel"/.test(d1) && /Fuel for today/.test(t1) && /Post-AM meal/.test(t1) && /After the AM Zone 2 run/.test(t1) && /150g chicken/.test(t1) && /3\.5 to 4\.0 Liters a day/.test(t1));
+  assert.ok(!/class="card sleep"/.test(d1), 'no sleep card on a lifting day');
+  const d2 = day(1, 2), t2 = txt(d2);
+  assert.ok(/Pre-BJJ meal/.test(t2) && /15:30–16:30/.test(t2) && /Intra-BJJ/.test(t2) && /sea salt/.test(t2), 'BJJ day fuel');
+  assert.ok(/class="card sleep"/.test(d2) && /Thermal Dump Shower/.test(t2) && /22:15/.test(t2) && /dim quiet room/.test(t2), 'BJJ day sleep blueprint');
+  assert.ok(/Post-Sprint meal/.test(txt(day(1, 6))) && /Creatine/.test(txt(day(1, 4))) && /with breakfast/.test(txt(day(1, 7))));
+  assert.ok(!/Post-AM meal|Pre-BJJ/.test(txt(day(1, 4))), 'recovery day: baseline only');
+  const pr = V.program(ctx(S, { tab: 'program' })), tp = txt(pr);
+  assert.ok(/Hybrid Athlete Master Program &amp; Tactical Recovery Manual|Hybrid Athlete Master Program & Tactical Recovery Manual/.test(pr + tp) && /18-Year-Old Hybrid Athlete \(179 cm, 70 kg\)/.test(tp) && /Sleep blueprint/.test(tp));
+  ['Hypertrophy, Base & Tendon Capacity', 'Functional Strength & Contrast Power', 'Max Explosiveness, Speed & 1RM Peak', 'Cycle Reset & Baseline Elevation'].forEach((n) => assert.ok(tp.indexOf(n.replace(/&/g, '&amp;')) >= 0 || tp.indexOf(n) >= 0, n));
+  // the timed 3 km run in Block 4 reads as a timed run, not a Zone 2 run
+  const t14 = txt(V.today(ctx(mkState({ age: 18, rhr: 55 }), { view: { week: 14, day: 1 }, gcal: { off: true, on: false } })));
+  assert.ok(/3 km timed run/.test(t14) && !/Morning Zone 2 run/.test(t14));
+});
+test('Zone 2 target heart rate uses the Karvonen formula from the age and resting heart rate you enter', () => {
+  const S = mkState({ age: 18, rhr: 55 });
+  const z = E.zone2(S.settings);
+  assert.strictEqual(z.method, 'karvonen'); assert.strictEqual(z.mhr, 202);
+  assert.deepStrictEqual([z.lo, z.hi], [Math.round(55 + (202 - 55) * 0.6), Math.round(55 + (202 - 55) * 0.7)]);
+  const h = V.today(ctx(S, { view: { week: 1, day: 1 }, gcal: { off: true, on: false } }));
+  assert.ok(new RegExp('<span class="run-num">' + z.lo + '<i>–</i>' + z.hi + '</span>').test(h) && /Karvonen, 60.70% of heart-rate reserve/.test(h.replace(/<[^>]*>/g, '')));
+});
+test('Ducky: gemini-3.8-flash is the model, older Flash versions are never used or kept', () => {
+  assert.strictEqual(HA.ai.DEFAULT_MODEL, 'gemini-3.8-flash'); assert.strictEqual(HA.store.defaults().settings.geminiModel, 'gemini-3.8-flash');
+  const all = [HA.ai.DEFAULT_MODEL].concat(HA.ai.MODELS, HA.ai.FALLBACKS);
+  all.forEach((m) => assert.ok(!/1\.5|2\.[0-9]+-/.test(m) && !/2\.8/.test(m), 'no older model: ' + m));
+  assert.ok(HA.ai.MODELS.includes('gemini-3.8-flash'));
+  // a saved older model moves up to 3.8 (restoring an old backup too); one you typed yourself stays
+  const restore = (model) => { const d = HA.store.defaults(); d.settings.geminiModel = model; assert.ok(HA.store.importJSON(JSON.stringify(d)).ok); return HA.store.get().settings.geminiModel; };
+  ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.8-flash', ''].forEach((old) => assert.strictEqual(restore(old), 'gemini-3.8-flash', 'migrated from "' + old + '"'));
+  assert.strictEqual(restore('gemini-flash-latest'), 'gemini-flash-latest'); assert.strictEqual(restore('gemini-3.8-flash'), 'gemini-3.8-flash'); assert.strictEqual(restore('my-own-model'), 'my-own-model');
+  HA.store.reset();
+});
+test('Ducky: the request goes to gemini-3.8-flash with the key in a header, and only a missing model falls back', async () => {
+  const calls = [], ok = { candidates: [{ content: { parts: [{ text: 'Eat the rice.' }] } }] };
+  const mk = (statuses) => async (url, init) => { calls.push({ url, init }); const st = statuses.shift(); return { ok: st === 200, status: st, statusText: '', json: async () => (st === 200 ? ok : { error: { message: 'x' } }) }; };
+  let r = await HA.ai.ask({ key: 'K', model: 'gemini-3.8-flash', system: 'sys', user: 'hi', fetchImpl: mk([200]) });
+  assert.strictEqual(r.text, 'Eat the rice.'); assert.strictEqual(r.model, 'gemini-3.8-flash');
+  assert.ok(calls[0].url.indexOf('/models/gemini-3.8-flash:generateContent') > 0 && calls[0].init.headers['x-goog-api-key'] === 'K' && calls[0].url.indexOf('K') < 0, 'key is a header, not in the address');
+  const body = JSON.parse(calls[0].init.body); assert.ok(body.generationConfig.maxOutputTokens >= 8192 && body.systemInstruction.parts[0].text === 'sys');
+  calls.length = 0; r = await HA.ai.ask({ key: 'K', model: 'gemini-3.8-flash', system: 's', user: 'u', fetchImpl: mk([404, 200]) });
+  assert.deepStrictEqual(calls.map((c) => c.url.split('/models/')[1].split(':')[0]), ['gemini-3.8-flash', 'gemini-flash-latest'], 'only a 404 tries the alias');
+  calls.length = 0; await assert.rejects(HA.ai.ask({ key: 'K', model: 'gemini-3.8-flash', system: 's', user: 'u', fetchImpl: mk([429]) }), (e) => e.kind === 'quota');
+  assert.strictEqual(calls.length, 1, 'a rate limit is not retried on another model');
+});
+test('Ducky knows the whole manual: 16-week loads, nutrition, sleep, today\'s fuel, the weighted lifts and Karvonen', () => {
+  const S = mkState({ age: 18, rhr: 55 }); S.baselines = { bss: { kg: 40, at: '2026-11-01' } };
+  const p = HA.ai.systemPrompt(S, { week: 1, day: 2 }, '2026-11-03');
+  [P.programName, '179 cm, 70 kg', 'Latvian VAD', 'ISTAR', 'Tactical Recovery Manual'].forEach((x) => assert.ok(p.indexOf(x) >= 0, 'prompt has ' + x));
+  [/Power Clean: W1 4x5 @52\.5kg \| W2 4x4 @55kg \| W3 4x3 @60kg \| W4 2x3 @45kg/, /Bulgarian Split Squat: W1 3x10 @15kg \| W2 3x8 @20kg \| W3 3x6 @25kg \| W4 2x6 @BW/,
+   /Pull-up: W1 3x10 @BW \| W2 3x8 @BW \| W3 3x6 @BW\+2\.5kg \| W4 3x5 @BW/, /Romanian Deadlift \(RDL\)|Romanian Deadlift: W1/, /W13 3x10 @71\.4%/, /W16 /].forEach((re) => assert.ok(re.test(p), 'load table: ' + re));
+  [/creatine 5g daily/, /Meal timing, Days 1 and 5/, /Pre-BJJ meal \(15:30-16:30\)/, /Meal timing, Day 6/, /Thermal Dump Shower \(22:15\)/, /20-Minute Reset Rule/, /3\.5 to 4\.0 Liters/].forEach((re) => assert.ok(re.test(p), 'manual: ' + re));
+  assert.ok(/TODAY'S FUEL \(Day 2\)[\s\S]*Pre-BJJ meal \(15:30–16:30\): 100g oats in water/.test(p), 'today\'s fuel is for the viewed day');
+  assert.ok(/Karvonen/.test(p) && /Epley/.test(p) && /Zone 2/.test(p) && !/Weeks 13-16 are not in the JSON/.test(p));
+  assert.ok(/Block 4 \(weeks 13-16\) restarts the Block 1 wave/.test(p) && /not the manual/.test(p), 'says which choices are the app\'s own');
+  assert.ok(p.length < 30000, 'prompt size ' + p.length);
 });
 
 console.log('Wiring');
@@ -342,5 +417,4 @@ test('every script and asset referenced by index.html, the manifest and the serv
   assert.deepStrictEqual([...idx.matchAll(/(?:src|href)="([^"#]+)"/g)].map((m) => m[1]).concat(shell, man.icons.map((i) => i.src)).filter((u) => !/^https?:/.test(u) && u.includes('/')), [], 'a link points into a subfolder');
 });
 
-console.log(`\n${passed} passed${failed ? ', ' + failed + ' FAILED' : ''}`);
-process.exit(failed ? 1 : 0);
+Promise.all(pending).then(() => { console.log(`\n${passed} passed${failed ? ', ' + failed + ' FAILED' : ''}`); process.exit(failed ? 1 : 0); });

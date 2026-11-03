@@ -6,8 +6,10 @@
   var HA = root.HA = root.HA || {};
   var E = HA.engine, P = HA.program;
 
-  var DEFAULT_MODEL = 'gemini-2.5-flash';
-  var FALLBACKS = ['gemini-flash-latest', 'gemini-2.5-flash'];
+  // Ducky's model. Older Flash versions (1.5, 2.x) are deliberately not used anywhere. The alias below is only tried if Google says
+  // the model name above is not found for the key (a 404), so a missing model does not leave you without a coach.
+  var DEFAULT_MODEL = 'gemini-3.8-flash';
+  var FALLBACKS = ['gemini-flash-latest'];
   var ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
   function esc(s) {
@@ -15,9 +17,9 @@
   }
 
   /* --------------------------------------------------------------- YouTube */
-  // "Pallof Press (or DB Drag Plank)" -> "pallof press"; "Power Clean or High Pull" -> "power clean"
+  // "Pallof Press (or DB Drag Plank)" -> "pallof press"; "Power Clean / High Pull" -> "power clean"
   function searchName(name) {
-    return String(name).replace(/\(.*?\)/g, ' ').split(/\s+or\s+/i)[0].replace(/\s+/g, ' ').trim().toLowerCase();
+    return String(name).replace(/\(.*?\)/g, ' ').split(/\s+(?:or|\/)\s+/i)[0].replace(/\s+/g, ' ').trim().toLowerCase();
   }
   function youtubeLink(name) {
     return 'https://www.youtube.com/results?search_query=' + encodeURIComponent('how to do ' + searchName(name)).replace(/%20/g, '+');
@@ -85,6 +87,39 @@
     return { text: clean.replace(/\n{3,}/g, '\n\n').trim(), mods: mods };
   }
 
+  /* ------------------------------------------------- what Ducky knows about the program */
+  // One line per tracked lift: what every one of the 16 weeks asks for (sets x reps and the kilograms or percent of 1RM).
+  function liftTable() {
+    return E.LIFT_KEYS.map(function (k) {
+      var cells = [];
+      for (var w = 1; w <= 16; w++) {
+        var ex = P.flatExs(P.getWorkout(w, 1)).concat(P.flatExs(P.getWorkout(w, 5))).filter(function (e) { return e.liftKey === k; })[0];
+        if (!ex) continue;
+        var load = ex.kg != null ? (ex.kg > 0 ? (k === 'pullup' ? 'BW+' : '') + E.fmtNum(ex.kg) + 'kg' : 'BW') : Math.round(ex.pct * 1000) / 10 + '%';
+        cells.push('W' + w + ' ' + ex.sets + 'x' + ex.lo + ' @' + load);
+      }
+      return '- ' + P.LIFT_LABEL[k] + ': ' + cells.join(' | ');
+    }).join('\n');
+  }
+  function fuelText(day) {
+    var f = P.fuel(day), out = [];
+    f.meals.forEach(function (m) { out.push('- ' + (m.label ? m.label + (m.when ? ' (' + m.when + ')' : '') + ': ' : '') + m.text); });
+    f.baseline.forEach(function (b) { out.push('- ' + b.label + ': ' + b.text); });
+    return out.join('\n');
+  }
+  function manualText() {
+    var NUT = HA.SPEC.nutritionProtocols || {}, out = [];
+    out.push('Nutrition, all days: ' + [NUT.dailyBaseline && NUT.dailyBaseline.creatine && 'creatine ' + NUT.dailyBaseline.creatine, NUT.dailyBaseline && NUT.dailyBaseline.hydration && 'water ' + NUT.dailyBaseline.hydration, NUT.dailyBaseline && NUT.dailyBaseline.electrolytes].filter(Boolean).join('; '));
+    if (NUT.timelines) {
+      out.push('Meal timing, Days 1 and 5: ' + NUT.timelines.days1and5);
+      out.push('Meal timing, Days 2 and 3 (BJJ): ' + NUT.timelines.days2and3);
+      out.push('Meal timing, Day 6 (sprints): ' + NUT.timelines.day6);
+    }
+    out.push('Sleep blueprint (after evening BJJ):');
+    (NUT.sleepBlueprint || []).forEach(function (x) { out.push('  - ' + x); });
+    return out.join('\n');
+  }
+
   /* ----------------------------------------------------------- system prompt */
   function systemPrompt(S, view, todayISO) {
     var st = S.settings, units = st.units || 'kg';
@@ -103,13 +138,15 @@
       if (idx < E.TOTAL_DAYS) { var n = P.getWorkout(Math.floor(idx / 7) + 1, (idx % 7) + 1); next.push('Week ' + n.week + ' Day ' + n.day + ': ' + n.title); }
     }
     return [
-      'You are Ducky, a calm, practical rubber-duck coach inside the "Hybrid Athlete Tracker" app. The athlete trains strength, power, sprinting, Zone 2 running and Brazilian jiu-jitsu.',
+      'You are Ducky, a calm, practical rubber-duck coach inside the "Hybrid Athlete Tracker" app. The athlete follows "' + P.programName + '" for this profile: ' + P.profile + '. They train strength, power, sprinting, Zone 2 running and Brazilian jiu-jitsu, and they prepare for tactical selection.',
       '',
       'RULES',
       '- Answer only what the athlete asked. Never volunteer extra coaching, and never interrupt a workout. Keep replies short: plain sentences or a few bullets, usually under 150 words.',
-      '- You know their exact program (JSON below). Weeks 13-16 are not in the JSON: they repeat Block 1 at recalibrated weights.',
-      '- Weights are in ' + units + '. Intensities are percentages of the estimated 1RMs listed below.',
-      '- Pull-ups are weighted: the 1RM and the percentage are about the total load (bodyweight plus added weight), and the weight in the plan is the ADDED weight. The Bulgarian split squat weight is the total weight held, with reps counted per leg.',
+      '- You know their exact 16-week program, nutrition protocols and sleep and recovery protocols (below). Answer about food, hydration, recovery and sleep from those protocols first, and say so when you add something that is not in them.',
+      '- Block 1 (weeks 1-4) uses the fixed kilograms written in the program. Blocks 2 and 3 only have rules in the program, so the app builds them: heavy reps at a percent of the estimated 1RM, contrast complexes, deload in the fourth week. Block 4 (weeks 13-16) restarts the Block 1 wave at percentages of the recalculated 1RMs and adds rucking, a 3 km timed run and push-up burnouts. Sprint counts, rest times and where the Block 4 add-ons go are the app\'s own choices, not the manual\'s.',
+      '- The athlete sees weights in ' + units + ' (the load table below is in kilograms, as written in the program). 1RMs are estimated with the Epley formula: weight x (1 + reps / 30), counting reps left in the tank. Intensities from Block 2 on are percentages of the estimated 1RMs listed below.',
+      '- Pull-ups are weighted: the 1RM and the percentage are about the total load (bodyweight plus added weight), and the weight in the plan is the ADDED weight. The Bulgarian split squat (ATG) weight is the total weight held, with reps counted per leg. DB bench weights are per dumbbell.',
+      '- Zone 2 heart rate comes from the Karvonen formula: resting heart rate + (max heart rate - resting heart rate) x intensity, using the numbers in ATHLETE below.',
       '- If they are fatigued, sore or hurt, adapt volume and intensity conservatively. Sharp, worsening or lingering pain, numbness, or a possible serious injury: tell them to stop that movement and see a clinician. You are not a doctor.',
       '',
       'WHEN ASKED TO MODIFY A WORKOUT',
@@ -127,11 +164,20 @@
       '- ' + lifts,
       z ? '- ' + z : '- Zone 2 heart rate not configured.',
       '',
+      "TODAY'S FUEL (Day " + wk.day + ')',
+      fuelText(wk.day) || 'No meal timing for this day beyond the daily baseline.',
+      '',
       "TODAY'S WORKOUT (Week " + wk.week + ' Day ' + wk.day + ': ' + wk.title + ')',
       P.summarize(wk, opts).join('\n') || 'No exercises (rest or BJJ day).',
       '',
       'COMING UP',
       next.join('\n') || 'End of the program.',
+      '',
+      'LOADS FOR ALL 16 WEEKS (sets x reps @ kilograms in Block 1, percent of estimated 1RM after; BW = bodyweight)',
+      liftTable(),
+      '',
+      'NUTRITION AND RECOVERY MANUAL',
+      manualText(),
       '',
       'FULL PROGRAM SPEC (JSON)',
       JSON.stringify(HA.SPEC)
@@ -170,7 +216,7 @@
     var body = JSON.stringify({
       systemInstruction: { parts: [{ text: o.system }] },
       contents: (o.history || []).concat([{ role: 'user', parts: [{ text: o.user }] }]),
-      generationConfig: { temperature: 0.5, maxOutputTokens: 4096 }
+      generationConfig: { temperature: 0.5, maxOutputTokens: 8192 }
     });
     var lastErr = null;
     for (var i = 0; i < models.length; i++) {
@@ -196,8 +242,8 @@
   }
 
   HA.ai = {
-    DEFAULT_MODEL: DEFAULT_MODEL, MODELS: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest'],
+    DEFAULT_MODEL: DEFAULT_MODEL, MODELS: ['gemini-3.8-flash', 'gemini-flash-latest'],
     esc: esc, searchName: searchName, youtubeLink: youtubeLink, detectTutorial: detectTutorial, md: md, parseReply: parseReply,
-    systemPrompt: systemPrompt, toHistory: toHistory, ask: ask, friendly: friendly
+    FALLBACKS: FALLBACKS, liftTable: liftTable, systemPrompt: systemPrompt, toHistory: toHistory, ask: ask, friendly: friendly
   };
 })(typeof window !== 'undefined' ? window : globalThis);

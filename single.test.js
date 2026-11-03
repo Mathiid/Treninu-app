@@ -74,7 +74,8 @@ test('every script parses, and the modules run in order and publish what the app
   scriptBlocks.slice(0, -1).forEach((b, i) => vm.runInContext(b, ctx, { filename: ORDER[i] + '.js' }));     // app.js needs a real DOM: the e2e run covers it
   ['SPEC', 'THUMBS', 'engine', 'program', 'session', 'store', 'zone2', 'sched', 'actions', 'timer', 'hr', 'gcal', 'ai', 'views'].forEach((k) => assert.ok(ctx.HA[k], 'HA.' + k + ' missing'));
   assert.strictEqual(ctx.HA.gcal.off, true); assert.strictEqual(ctx.HA.gcal.create().status().off, true);
-  assert.strictEqual(ctx.HA.SPEC.totalWeeks, 16);
+  assert.strictEqual(ctx.HA.SPEC.blocks.length, 4); assert.strictEqual(ctx.HA.SPEC.programName, 'Hybrid Athlete Master Program & Tactical Recovery Manual');
+  assert.strictEqual(ctx.HA.ai.DEFAULT_MODEL, 'gemini-3.8-flash'); assert.strictEqual(ctx.HA.program.getWorkout(16, 7).kind, 'rest');
 });
 
 test('the program data in the file is the program.json from the spec', () => {

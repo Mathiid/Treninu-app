@@ -75,7 +75,7 @@
   function fmtInt(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
   function pct(p) { return Math.round(p * 1000) / 10 + '%'; }
   function belt(name) { return '<span class="belt belt-' + name + '" role="img" aria-label="' + BELT[name] + '"></span>'; }
-  function header(title, sub) { return '<header class="page-head"><h1>' + esc(title) + '</h1>' + (sub ? '<p>' + esc(sub) + '</p>' : '') + '</header>'; }
+  function header(title, sub, cls) { return '<header class="page-head' + (cls ? ' ' + cls : '') + '"><h1>' + esc(title) + '</h1>' + (sub ? '<p>' + esc(sub) + '</p>' : '') + '</header>'; }
   function dayDone(S, wk) {
     var logged = S.logs.some(function (l) { return l.wid === wk.wid; });
     if (wk.items.length) return logged;
@@ -86,14 +86,23 @@
     return m ? m[1] + '–' + m[2] + '%' : '';
   }
   function liftRM(c, key) { return key ? E.oneRMFor(c.S, key, c.today) : null; }
+  // the weight to lift: the kilograms written in the program (Block 1), else a percent of the current 1RM
   function workingWeight(c, ex) {
+    if (ex.kg != null) return E.fixedKg(ex.kg, c.S.settings);
     var rm = liftRM(c, ex.liftKey);
     return rm && ex.pct ? E.workingKg(ex.liftKey, rm.kg, ex.pct, c.S.settings) : null;
+  }
+  // a fixed program weight in words ("22.5 kg", "+2.5 kg", "bodyweight")
+  function fixedTxt(c, ex) {
+    var u = units(c);
+    if (ex.kg > 0) return (ex.liftKey === 'pullup' ? '+' : '') + E.fmtW(E.fixedKg(ex.kg, c.S.settings), u) + ' ' + u + (ex.liftKey === 'pullup' ? ' added' : ex.liftKey === 'bench' ? ' each' : ex.liftKey === 'bss' ? ' in total' : '');
+    return 'bodyweight';
   }
   // how a working weight reads: pull-ups show the weight ADDED to bodyweight ("+5 kg", or "BW")
   function wTxt(c, key, kg) {
     var u = units(c);
     if (key === 'pullup') return kg > 0 ? '+' + E.fmtW(kg, u) + ' ' + u : 'BW';
+    if (key === 'bss' && !(kg > 0)) return 'BW';
     return E.fmtW(kg, u) + ' ' + u;
   }
   function totalNote(key) { return key === 'pullup' ? ' total' : ''; }
@@ -102,13 +111,21 @@
   /* --------------------------------------------------------------- day detail */
   function pRow(c, ex) {
     var meta = ex.mode === 'check' ? ex.label : ex.sets + ' × ' + ex.label;
-    var w = '';
-    if (ex.pct) {
-      var kg = workingWeight(c, ex);
+    var w = '', share = '', kg, rm;
+    if (ex.kg != null) {                                              // Block 1: the program gives the kilograms; the share of 1RM is shown when a 1RM is known
+      var fk = E.fixedKg(ex.kg, c.S.settings);
+      w = wTxt(c, ex.liftKey, fk);
+      rm = liftRM(c, ex.liftKey);
+      var f = rm ? E.pctOfRM(ex.liftKey, fk, rm.kg, E.bodyKg(c.S.settings)) : null;
+      if (f) share = pct(f);
+    } else if (ex.pct) {
+      kg = workingWeight(c, ex);
       w = kg != null ? wTxt(c, ex.liftKey, kg) : pct(ex.pct);
+      if (kg != null) share = pct(ex.pct);
     }
     return '<li class="p-row"><span class="p-name">' + esc(ex.name) + (ex.note ? ' <em>' + esc(ex.note) + '</em>' : '') + '</span>' +
-           (meta ? '<span class="p-meta">' + esc(meta) + '</span>' : '') + (w ? '<span class="p-w">' + esc(w) + '</span>' : '') + '</li>';
+           (meta ? '<span class="p-meta">' + esc(meta) + '</span>' : '') +
+           (w ? '<span class="p-w">' + esc(w) + (share ? '<small>' + esc(share) + ' of 1RM</small>' : '') + '</span>' : '') + '</li>';
   }
   function previewList(c, wk) {
     var h = '<ul class="plist">';
@@ -116,7 +133,7 @@
       if (it.kind === 'section') h += '<li class="p-sec">' + esc(it.title) + '</li>';
       else if (it.kind === 'ex') h += pRow(c, it.ex);
       else {
-        h += '<li class="p-group g-' + it.variant + '"><div class="p-ghead"><b>' + esc(it.label) + '</b><span>' + esc(it.sub) + ', ' + it.rounds + ' rounds</span></div><ul>' +
+        h += '<li class="p-group g-' + it.variant + '"><div class="p-ghead"><b>' + esc(it.label) + '</b><span>' + (it.sub ? esc(it.sub) + ', ' : '') + it.rounds + ' rounds</span></div><ul>' +
              it.exs.map(function (e) { return pRow(c, e); }).join('') + '</ul></li>';
       }
     });
@@ -136,10 +153,10 @@
     var h = '<div class="card run"><div class="run-main">';
     if (z) {
       h += '<div class="run-hr"><span class="run-num">' + z.lo + '<i>–</i>' + z.hi + '</span><span class="run-unit">bpm</span></div>' +
-           '<div class="run-txt"><h3>Morning Zone 2 run</h3><p>' + esc(wk.am.minLo + '–' + wk.am.minHi) + ' min, easy and conversational. Fuel after.</p>' +
+           '<div class="run-txt"><h3>' + (wk.am.timed ? '3 km timed run' : 'Morning Zone 2 run') + '</h3><p>' + (wk.am.timed ? 'Practise your goal pace. Log the time. Warm up well and keep the heart rate under control early.' : esc(wk.am.minLo + '–' + wk.am.minHi) + ' min, easy and conversational. Fuel after.') + '</p>' +
            '<small>' + (z.method === 'karvonen' ? 'Karvonen, ' + z.loPct + '–' + z.hiPct + '% of heart-rate reserve' : z.loPct + '–' + z.hiPct + '% of max heart rate') + ', max ' + z.mhr + '</small>' + paceLine(c) + '</div>';
     } else {
-      h += '<div class="run-txt"><h3>Morning Zone 2 run</h3><p>' + esc(wk.am.text) + '</p>' +
+      h += '<div class="run-txt"><h3>' + (wk.am.timed ? '3 km timed run' : 'Morning Zone 2 run') + '</h3><p>' + esc(wk.am.text) + '</p>' +
            '<button class="link" data-act="goto-settings" data-focus="hr">Add your age to see your target heart rate</button></div>';
     }
     h += '</div><div class="run-tools"><button class="btn btn-ghost" data-act="live-open">' + ICON.pulse + 'Live heart rate</button><button class="btn btn-ghost" data-act="run-log">Log a run</button></div>' +
@@ -161,7 +178,7 @@
     var logs = c.S.logs.filter(function (l) { return l.wid === wk.wid; });
     var h = '<div class="card wcard"><div class="wcard-head"><h3>' + (wk.am ? 'Evening session' : 'Session') + '</h3><span>' + (n ? n + ' exercises, ' + sets + ' sets' : 'Checklist') + '</span></div>';
     if (wk.deload) h += '<p class="deload-note"><b>Deload week.</b> Weights drop to ' + pct(E.DELOAD_PCT) + ' of 1RM and volume is cut.</p>';
-    if (missing.length) h += '<div class="hint"><span>Enter your 1RMs and weights fill in for you.</span><button class="link" data-act="goto-lifts">Set 1RMs</button></div>';
+    if (missing.length) h += '<div class="hint"><span>' + (wk.phase === 'b1' ? 'Add your 1RMs to see each weight as a share of your 1RM.' : 'Enter your 1RMs and weights fill in for you.') + '</span><button class="link" data-act="goto-lifts">Set 1RMs</button></div>';
     h += previewList(c, wk);
     if (logs.length) {
       var l = logs[logs.length - 1], cnt = 0; l.entries.forEach(function (e) { cnt += e.sets.length; });
@@ -239,6 +256,28 @@
     h += '<p class="muted cal-file">Want all 16 weeks at once? <button class="link" data-act="cal-download">Download the calendar file (.ics)</button> and import it.</p>';
     return sheet('Add to Google Calendar', h);
   }
+  /* ---------------------------------------------------- fuel and sleep (from the program's nutrition manual) */
+  function fuelCard(c, wk) {
+    var f = P.fuel(wk.day);
+    if (!f.baseline.length && !f.meals.length) return '';
+    var quick = f.baseline.filter(function (b) { return b.label === 'Creatine' || b.label === 'Hydration'; }).map(function (b) { return b.text; }).join('. ');
+    var h = '<details class="card fuel"><summary><span class="fuel-t">Fuel for today</span><span class="fuel-s">' + esc(quick || 'Daily baseline') + '</span>' + ICON.down + '</summary><div class="fuel-body">';
+    if (f.meals.length) {
+      h += '<ol class="meals">' + f.meals.map(function (m) {
+        return '<li>' + (m.label ? '<b>' + esc(m.label) + '</b>' : '') + (m.when ? '<small>' + esc(m.when) + '</small>' : '') + '<p>' + esc(m.text) + '</p></li>';
+      }).join('') + '</ol>';
+    }
+    h += '<h4>Every day</h4><ul class="base">' + f.baseline.map(function (b) { return '<li><b>' + esc(b.label) + '</b><span>' + esc(b.text) + '</span></li>'; }).join('') + '</ul></div></details>';
+    return h;
+  }
+  function sleepCard(c, wk, open) {
+    var sl = P.sleep();
+    if (!sl.length) return '';
+    return '<details class="card sleep"' + (open ? ' open' : '') + '><summary><span class="fuel-t">Sleep blueprint</span><span class="fuel-s">Wind down after hard sessions</span>' + ICON.down + '</summary>' +
+           '<ol class="sleeps">' + sl.map(function (x) {
+             return '<li>' + (x.title ? '<b>' + esc(x.title) + '</b>' : '') + (x.when ? '<small>' + esc(x.when) + '</small>' : '') + '<p>' + esc(x.text) + '</p></li>';
+           }).join('') + '</ol></details>';
+  }
   function dayBody(c, wk, iso) {
     var h = '<section class="day"><div class="day-head"><h2 class="day-title">' + esc(wk.shortTitle) + '</h2><p class="day-date">' + longDate(iso) + ', day ' + wk.day + '</p></div>';
     h += sessionList(c, wk, iso);
@@ -246,6 +285,8 @@
     if (wk.kind === 'bjj') h += bjjCard(c, wk);
     else if (wk.kind === 'rest') h += restCard(c, wk);
     else h += workoutCard(c, wk);
+    h += fuelCard(c, wk);
+    if (wk.kind === 'bjj') h += sleepCard(c, wk, false);
     return h + '</section>';
   }
 
@@ -298,7 +339,8 @@
   /* ----------------------------------------------------------------- Program */
   function program(c) {
     var st = c.S.settings, pos = E.position(st.startDate, c.today);
-    var h = header('Program', '16 weeks in four blocks. Belts mark the block.');
+    var h = header(P.programName, P.profile, 'page-head-long');
+    h += '<p class="muted prog-sub">16 weeks in four blocks. Belts mark the block. Block 1 is your written program; Blocks 2 to 4 are built from your rules.</p>';
     h += '<ul class="legend">';
     ['strength', 'bjj', 'recovery', 'speed', 'rest'].forEach(function (k) { h += '<li class="k-' + k + '"><i></i>' + KIND_CODE[k] + ' ' + KIND_NAME[k] + '</li>'; });
     h += '</ul>';
@@ -317,7 +359,7 @@
       }
       h += '</section>';
     });
-    return h;
+    return h + sleepCard(c, null, false);
   }
   function daySheet(c, w, d) {
     var wk = P.getWorkout(w, d), iso = E.dateFor(c.S.settings.startDate, w, d);
@@ -341,14 +383,15 @@
       var ex = P.flatExs(P.getWorkout(w, 1)).concat(P.flatExs(P.getWorkout(w, 5))).filter(function (e) { return e.liftKey === key; })[0];
       var b = P.blockOf(w), cur = c.view.week === w;
       head += '<th class="bk-' + b.belt + (cur ? ' cur' : '') + '">W' + w + '</th>';
-      var kg = rm && ex ? E.workingKg(key, rm.kg, ex.pct, c.S.settings) : null;
-      var shown = kg == null ? pct(ex.pct) : key === 'pullup' ? (kg > 0 ? '+' + E.fmtW(kg, units(c)) : 'BW') : E.fmtW(kg, units(c));
-      row += '<td class="' + (b.deload ? 'dl' : '') + (cur ? ' cur' : '') + '"><b>' + shown + '</b><small>' + ex.sets + '×' + ex.lo + '</small>' + (kg != null ? '<small>' + pct(ex.pct) + '</small>' : '') + '</td>';
+      var fixed = ex.kg != null, kg = fixed ? E.fixedKg(ex.kg, c.S.settings) : (rm ? E.workingKg(key, rm.kg, ex.pct, c.S.settings) : null);
+      var share = fixed ? (rm ? E.pctOfRM(key, kg, rm.kg, E.bodyKg(c.S.settings)) : null) : (kg != null ? ex.pct : null);
+      var shown = kg == null ? pct(ex.pct) : key === 'pullup' ? (kg > 0 ? '+' + E.fmtW(kg, units(c)) : 'BW') : kg > 0 ? E.fmtW(kg, units(c)) : 'BW';
+      row += '<td class="' + (b.deload ? 'dl' : '') + (cur ? ' cur' : '') + '"><b>' + shown + '</b><small>' + ex.sets + '×' + ex.lo + '</small>' + (share ? '<small>' + pct(share) + '</small>' : '') + '</td>';
     }
     return '<div class="proj"><table><thead><tr>' + head + '</tr></thead><tbody><tr>' + row + '</tr></tbody></table></div>';
   }
   function lifts(c) {
-    var u = units(c), h = header('Lifts', 'Your 1RMs drive every working weight in the plan.'), bw = E.bodyKg(c.S.settings);
+    var u = units(c), h = header('Lifts', 'Block 1 uses the kilograms in your program. From Block 2 your 1RMs set every working weight.'), bw = E.bodyKg(c.S.settings);
     E.LIFT_KEYS.forEach(function (k) {
       var rm = liftRM(c, k), pts = E.e1rmPoints(c.S, k), base = c.S.baselines[k];
       var src = !rm ? 'Not set yet' : rm.src === 'baseline' ? 'Entered by you, ' + longDate(rm.date) : rm.src === 'logged' ? 'Best of the last 4 weeks, ' + longDate(rm.date) : 'Last logged ' + longDate(rm.date);
@@ -386,7 +429,7 @@
     }
     h += '<div class="chat" id="chat" aria-live="polite">';
     if (!c.S.chat.length) {
-      h += '<div class="chat-empty">' + ICON.duck + '<p>Ask about today’s session, a movement, or how to adjust when something is off.</p></div>';
+      h += '<div class="chat-empty">' + ICON.duck + '<p>Ask about today’s session, your fuel and sleep plan, a movement, or how to adjust when something is off.</p></div>';
     }
     c.S.chat.forEach(function (m, i) {
       if (m.role === 'user') { h += '<div class="msg me"><p>' + esc(m.text).replace(/\n/g, '<br>') + '</p></div>'; return; }
@@ -407,6 +450,8 @@
     h += '</div>';
     h += '<div class="chips"><button class="chip" data-act="duck-modify">Modify today’s workout</button><button class="chip" data-act="duck-how">How do I perform…</button>' +
          '<button class="chip" data-act="duck-ask" data-q="I’m very fatigued today. What should I change?">I’m fatigued</button>' +
+         '<button class="chip" data-act="duck-ask" data-q="What should I eat and drink today, and when?">Fuel today</button>' +
+         '<button class="chip" data-act="duck-ask" data-q="I’m sleeping badly after training. Walk me through my sleep blueprint.">Sleep help</button>' +
          (c.S.chat.length ? '<button class="chip chip-quiet" data-act="duck-clear">Clear chat</button>' : '') + '</div>';
     h += '<form class="composer" data-form="ducky"><textarea id="duck-input" rows="1" placeholder="Ask Ducky" aria-label="Message Ducky" enterkeyhint="send"></textarea>' +
          '<button class="send" type="submit" aria-label="Send">' + ICON.send + '</button></form>';
@@ -685,7 +730,8 @@
     var bits = [];
     var n = Array.isArray(ex.sets) ? ex.sets.length : ex.sets;
     if (ex.mode !== 'check') bits.push(inGroup ? ex.label : n + ' × ' + ex.label);
-    if (ex.pct) bits.push(pct(ex.pct) + ' of 1RM');             // the weight itself is on the line below (rmLine)
+    if (ex.kg != null) bits.push(fixedTxt(c, ex));                // from your program; the share of 1RM is on the line below (rmLine)
+    else if (ex.pct) bits.push(pct(ex.pct) + ' of 1RM');        // the weight itself is on the line below (rmLine)
     return bits.join(', ');
   }
   // The weight on the set you are about to do (first unfinished set with a weight, else the last one), shown as a
@@ -767,7 +813,7 @@
       var live = it.exs.filter(function (e) { return !e.skipped; });
       var finished = live.every(function (e) { return e.sets.every(function (st) { return st.done; }); });
       var chip = finished ? 'Done' : pend && pend.it === i ? 'Round ' + (pend.set + 1) + ' of ' + rounds : rounds + (rounds === 1 ? ' round' : ' rounds');
-      h += '<section class="group g-' + it.variant + '" data-it="' + i + '"><header class="group-head"><div><h3>' + esc(it.label) + '</h3><p>' + esc(it.sub) + '</p></div><span class="round-chip">' + chip + '</span></header>' +
+      h += '<section class="group g-' + it.variant + '" data-it="' + i + '"><header class="group-head"><div><h3>' + esc(it.label) + '</h3>' + (it.sub ? '<p>' + esc(it.sub) + '</p>' : '') + '</div><span class="round-chip">' + chip + '</span></header>' +
            it.exs.map(function (e, k) { return exCard(c, i, k, e, pend, true); }).join('') +
            '<div class="ex-act"><button class="btn btn-ghost btn-sm" data-act="add-round" data-it="' + i + '">' + ICON.plus + 'Add round</button>' +
            '<button class="btn btn-quiet btn-sm" data-act="rm-round" data-it="' + i + '">' + ICON.minus + 'Remove round</button></div></section>';

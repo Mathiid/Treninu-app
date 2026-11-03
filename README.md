@@ -1,6 +1,6 @@
 # Hybrid Athlete Tracker & Ducky Coach
 
-A phone-first training log for your 16-week hybrid program (lifting, Zone 2 running, sprints, BJJ), built as an installable web app (PWA). It logs sets Hevy-style, runs the rest timer, sets your weights from your 1RMs and keeps them up to date from what you actually lift, coaches your Zone 2 runs live from a heart-rate sensor, keeps your schedule in two-way sync with Google Calendar, and has an on-demand AI coach called Ducky.
+A phone-first training log for the **Hybrid Athlete Master Program & Tactical Recovery Manual** (16 weeks of lifting, Zone 2 running, sprints and BJJ, with its nutrition and sleep protocols), built as an installable web app (PWA). It logs sets Hevy-style, runs the rest timer, sets your weights from your 1RMs and keeps them up to date from what you actually lift, coaches your Zone 2 runs live from a heart-rate sensor, keeps your schedule in two-way sync with Google Calendar, and has an on-demand AI coach called Ducky.
 
 There is no build step for the app itself (the single-file page below is an optional one), no backend and no account. Everything runs in the browser and is stored on your device.
 
@@ -10,7 +10,7 @@ There is no build step for the app itself (the single-file page below is an opti
 
 - **`index.html` is the app.** Open that one (on GitHub Pages: `https://<you>.github.io/<repo>/`). It needs the other files next to it.
 - **`index-single.html` is an optional alternative:** the whole app in one file (see below). You do not need it if you upload everything. If you want to use it instead, rename it to `index.html` (and `sw-single.js` to `sw.js`).
-- `program.json` is the 16-week plan as plain data. The app itself reads the same plan from `spec.js`; the build and the tests check that the two are identical.
+- `program.json` is your Master Program as plain data, exactly as you wrote it. The app itself reads the same text from `spec.js`; the build and the tests check that the two are identical. Change a number in `program.json` and `spec.js` (same text, same place) and the app follows.
 - `*.test.js`, `build-single.js`, `gcal-off.js` and `fake-gcal.js` are for developers. The app does not load them, so uploading them is harmless.
 - The file list is in *Project layout* at the end.
 
@@ -43,6 +43,27 @@ Other details: the safe edition's Content-Security-Policy allows the page's own 
 
 The rest of this README describes the loose-file app (`index.html`) and applies to both unless noted.
 
+## Your program in the app
+
+**Block 1 (weeks 1-4) is your program as written.** `program.js` reads the sentences in `spec.js` (the sets, reps, `@52.5kg`, `@BW+2.5kg`, `@2x10kg`, tendon work, plyos, supersets, finishers) and turns them into the logger. Every kilogram you wrote is what the logger pre-fills: Power Clean 52.5 / 55 / 60 / 45 kg, DB Bench 22.5 / 22.5 / 25 / 17.5 kg per dumbbell, Zercher 50 / 55 / 57.5 / 42.5 kg, RDL 52.5 / 55 / 60 / 45 kg, Bulgarian split squat 15 / 20 / 25 kg then bodyweight, pull-ups at bodyweight with +2.5 kg in week 3.
+
+**Blocks 2 and 3 (weeks 5-12) only exist as rules in your program**, so the app builds them from those rules and the Block 1 exercises: heavy sets at a percent of your estimated 1RM (4-6 reps at about 80-88% in Block 2, 1-3 reps at about 88-94% in Block 3), the contrast complexes on Days 1 and 5 (overcoming iso for 3-4 s, 20 s rest, explosive jump for 3-4 reps, 2 min rest, 3 rounds), Nordic curls at 3 x 4-6 then 2 x 3-4, depth jumps, single-leg bounds, flying 20s, 20-30 m sprints in Block 2 and 30 m flat plus 20 m steep hill in Block 3, and the week-4 deload. DB bench carries a note that the Block 2 target is 27.5-30 kg dumbbells.
+
+**Block 4 (weeks 13-16)** restarts the Block 1 wave at percentages of your recalculated 1RMs (taken from what you logged in Block 3), and adds the Pre-VAD work: rucking, a 3 km timed run and push-up burnouts.
+
+**Things the program does not say, so the app chose them** (change them in `program.js` if you disagree):
+
+- *Sprint counts* (4, 5, 6 then 3 in the deload week) and the 80% effort in the deload week. The program gives distances, the 90-95% range and the rest (90-120 s).
+- *Rest times* between sets (30 s inside a superset, 90 s after one, 120 s for main lifts, 150 s for power cleans, 60-90 s for tendon work and plyos, 45 s for core and finishers). The program gives rests only for sprints and the contrast complex.
+- *Where the Block 4 add-ons go:* rucks on Day 4 in weeks 13 (10-15 kg) and 15 (15-20 kg), the 3 km timed run replacing the Day 1 morning run in weeks 14 and 16, one push-up burnout after the lifts on Days 1 and 5 in weeks 13-15.
+- *Morning run length:* 30-45 min, an easy Zone 2 run. The program only says "AM Zone 2 Run".
+- *Bodyweight:* Settings starts at 70 kg (from your profile). Change it when it changes; pull-up percentages use it.
+- *Bulgarian split squat, week 1:* "BW or 2x7.5kg DBs" is pre-filled as 15 kg (two 7.5 kg dumbbells), with the bodyweight option shown as a note. Clear the field to log bodyweight.
+- *DB bench* weights and its 1RM are per dumbbell, and the 1RM is a per-dumbbell estimate.
+- *Where percentages show:* with a 1RM entered or logged, every weighted lift shows what share of the estimated 1RM the weight is, in the Today preview, live in the logger, and in the 16-week table on the Lifts tab.
+
+**Fuel and Sleep.** Each day has a collapsible *Fuel for today* card from your nutrition protocol: the meal timing for that kind of day (Days 1 and 5, the BJJ days, Day 6), plus the daily baseline (creatine timing for training or rest days, 3.5 to 4.0 litres of water, and the sea-salt electrolytes on BJJ and sprint days). BJJ days also carry the *Sleep blueprint*, and the Program tab has it too. These cards read the text in `spec.js`, so editing the manual edits the cards.
+
 ## Run it (loose files)
 
 You need to serve the files over **HTTPS** (or `localhost`) because service workers, notifications and the screen wake lock only work on secure origins.
@@ -62,8 +83,8 @@ To use it on your phone, put the files on any static host. GitHub Pages, Netlify
 
 ## First five minutes
 
-1. **Settings**: enter your **bodyweight** (pull-up weights need it), your age (and resting heart rate if you know it) for your Zone 2 range on run days, and check the **Program start** date; it defaults to the next Monday. Choose kg or lb.
-2. **Lifts** tab: tap *Set 1RM* for Bench Press, Zercher Squat, Power Clean, Romanian Deadlift, Bulgarian Split Squat and Pull-up. Every working weight in the plan fills in from these. No 1RM tested? Use the calculator on the same screen (for example 100 kg × 5).
+1. **Settings**: check your **bodyweight** (it starts at 70 kg from your profile; pull-up percentages need it), your age (and resting heart rate if you know it) for your Zone 2 range on run days, and check the **Program start** date; it defaults to the next Monday. Choose kg or lb.
+2. **Lifts** tab: tap *Set 1RM* for DB Bench Press (per dumbbell), Zercher Squat, Power Clean, Romanian Deadlift, Bulgarian Split Squat and Pull-up. Block 1 already has its kilograms, so the 1RMs show the share of 1RM next to each weight now, and set the weights from Block 2 on. No 1RM tested? Use the calculator on the same screen (for example 100 kg × 5), or just log Block 1: every logged session re-estimates the 1RMs.
 3. **Today** tab: tap *Start workout*.
 
 ## How it behaves
@@ -74,10 +95,10 @@ To use it on your phone, put the files on any static host. GitHub Pages, Netlify
 
 **Rest timer.** Starts when you tick a set (you can turn that off). It shows a large countdown with −15 / +15 / Skip. When it ends you get a short chime and a vibration. The chime is a brief Web Audio beep, never a long audio stream, so YouTube Music or Spotify keeps playing underneath. On Safari the audio session is set to *ambient* so it mixes rather than interrupts.
 
-**Progression.** Working weight = (current 1RM) × (target intensity), rounded to your plate step (2.5 kg or 5 lb by default; change it in Settings). Six lifts work this way. Details:
+**Progression.** In Block 1 the logger pre-fills the kilograms written in your program. From Block 2 on, working weight = (current 1RM) × (target intensity), rounded to your plate step (2.5 kg or 5 lb by default; change it in Settings). Six lifts work this way (and in every block they show what percentage of the estimated 1RM the weight is). Details:
 
-- **Bulgarian split squat:** the 1RM is the total weight you hold (both dumbbells together, or the bar) for one rep on one leg; reps are counted per leg. Day 1 shows the weight and what percentage of your estimated 1RM it is.
-- **Pull-up:** weighted. The 1RM and every percentage are about the *total* load, bodyweight plus added weight, and the weight field in the logger is the **added** weight (empty means bodyweight only). Example: bodyweight 80 kg, 1RM 120 kg total, 10 reps at 71.4% means 85.7 kg total, so add 5 kg. If the plan would be below your bodyweight it says so and leaves the field empty. Enter the 1RM as the total, or type `+40` for 40 kg added to bodyweight. The bodyweight at the time is saved with each logged session, so later bodyweight changes never rewrite old estimates.
+- **Bulgarian split squat (ATG):** the 1RM is the total weight you hold (both dumbbells together, or the bar) for one rep on one leg; reps are counted per leg. Day 1 shows the weight and what percentage of your estimated 1RM it is. Bodyweight sets (week 4) have no added weight, so no percentage.
+- **Pull-up:** weighted (Block 1 has bodyweight sets and +2.5 kg in week 3). The 1RM and every percentage are about the *total* load, bodyweight plus added weight, and the weight field in the logger is the **added** weight (empty means bodyweight only). Example: bodyweight 80 kg, 1RM 120 kg total, 10 reps at 71.4% means 85.7 kg total, so add 5 kg. If the plan would be below your bodyweight it says so and leaves the field empty. Enter the 1RM as the total, or type `+40` for 40 kg added to bodyweight. The bodyweight at the time is saved with each logged session, so later bodyweight changes never rewrite old estimates.
 - **Live percentage:** under each of these exercises the logger shows the weight on the set you are doing as a share of your estimated 1RM (for example *27.5 kg = 68.8% of estimated 1RM 40 kg*). It follows what you type, so you see the true percentage after plate rounding next to the planned one.
 
 - The intensity for a prescribed rep target comes from the Epley formula, `1RM = weight × (1 + reps / 30)`, with your planned reps in reserve (RIR) added so the maths is closed-loop. Do exactly what was prescribed and your 1RM estimate stays put instead of drifting down week after week. RIR by block: Block 1: 2, Block 2: 1, Block 3: 1, Block 4: 2; power cleans stop 2 reps further from failure.
@@ -91,12 +112,12 @@ To use it on your phone, put the files on any static host. GitHub Pages, Netlify
 
 **Calendar.** The quickest way is the **Add to Google Calendar** buttons (no sign-in, no file): on the Today screen each timed session has its own button, and *Whole week* (also in Settings, *Calendar*) opens a sheet with one button per session of that week, week arrows, and a single all-day event for the whole week. Each button is a plain link in Google's own format (`https://calendar.google.com/calendar/render?action=TEMPLATE&text=…&dates=…&details=…&ctz=…`) built from your current plan: the session title, the exact start and end time (moved sessions included), the workout with your weights in the description, and this device's time zone. It opens Google Calendar in the browser or app with the event filled in; you press Save. Google takes one event per link, which is why a week is a list of buttons (and one optional all-day overview event) rather than a single link, and a link cannot set a reminder (the .ics file does). To get all 16 weeks in one go, use Settings, then *Download calendar file (.ics)*. The file has 144 events with the right local dates and times: AM Zone 2 run and PM lift on Days 1 and 5, BJJ Gi, BJJ No-Gi, Recovery, Sprints, and all-day Rest entries (optional). Each timed event has a reminder 30 minutes before. To get it into Google Calendar: on a computer open Google Calendar, then Settings, *Import & export*, choose the file and pick the calendar. Every event has a stable ID and each export carries a higher revision number, so Google recognises a re-import as newer copies of the same events rather than adding a second set. If you ever do see duplicates (for instance after moving the start date by several weeks), delete the earlier events and import again.
 
-**Ducky.** Paste a Gemini API key in Settings (get one at Google AI Studio). It is saved only in this browser's storage, sent only to Google, and never included in backups or exports. Ducky speaks only when you ask: open the tab, tap *Modify today's workout* or *How do I perform…*, or type a question. Ducky knows your whole program and today's resolved workout (with your weights) and answers briefly.
+**Ducky.** Paste a Gemini API key in Settings (get one at Google AI Studio). It is saved only in this browser's storage, sent only to Google, and never included in backups or exports. Ducky speaks only when you ask: open the tab, tap *Modify today's workout* or *How do I perform…*, or type a question. Ducky knows your whole program: the weekly loads for all 16 weeks, the nutrition protocol and meal timing, the sleep blueprint, today's fuel plan and today's resolved workout (with your weights), and answers briefly. It also knows which parts of Blocks 2 to 4 the app built from your rules and which choices are the app's own.
 
 - *Modify today's workout* returns a short explanation plus changes (fewer sets, fewer reps, lighter weights, skip an exercise) that you apply with one tap. They apply to the workout in progress, or are saved and applied when you start today's session. Completed sets are never changed.
 - *How do I perform X?* returns 4–6 cue bullets and a YouTube search link such as `https://www.youtube.com/results?search_query=how+to+do+zercher+squat`.
 - "Today's workout" always means the workout you have open, or the real day's workout, not whichever day you are browsing.
-- Model: defaults to `gemini-2.5-flash`; switch in Settings. If a model name is retired, the app falls back automatically.
+- Model: **`gemini-3.8-flash`** is the active model, and the only choice in Settings besides `gemini-flash-latest`. Older Flash models (1.5, 2.x) are not used anywhere; a saved or restored setting that names one is moved to `gemini-3.8-flash`. Only if Google answers "model not found" for your key does the app try the `gemini-flash-latest` alias, so you are not left without a coach. The key goes in a request header to `generativelanguage.googleapis.com` and nowhere else. I confirmed the model name exists, but I could not call it with a real key from here.
 
 ## Zone 2 running: heart rate, pace and live coaching
 
@@ -175,12 +196,12 @@ styles.css            the whole design (tokens at the top)
 fonts.css             @font-face for Big Shoulders
 BigShoulders-Bold.woff, OFL-BigShoulders.txt   the font and its licence
 icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png   app icons
-program.json          the 16-week plan as plain data (same content as spec.js; checked by the build and tests)
+program.json          your Master Program as plain data (same content as spec.js; checked by the build and tests)
 
 guard.js              shows an explanation instead of a blank page if the app cannot start
-spec.js               your 16-week JSON, embedded verbatim
+spec.js               your Master Program JSON, embedded verbatim (loads, nutrition protocols, sleep blueprint)
 engine.js             pure maths: 1RM, units, rest parsing, Zone 2, history, .ics
-program.js            spec -> concrete workout for each of the 112 days
+program.js            reads the program text -> a concrete workout for each of the 112 days, and the fuel and sleep cards
 session.js            a live workout: prefill, supersets, rest plan, Ducky changes
 store.js              state + localStorage (API key and Google token stored separately)
 zone2.js              Karvonen, pace model, Bluetooth packets, TCX/GPX files, zone watcher (pure)
@@ -224,7 +245,7 @@ The end-to-end suite fakes Bluetooth (a heart-rate strap), Google sign-in and th
 
 ## Updating
 
-When you change any shipped file, bump `CACHE` in `sw.js` (for example `ha-v6`; it is `ha-v5` now) so installed copies pick the change up on their next launch. Then run `node build-single.js` to refresh `index-single.html`; `single.test.js` fails if it is out of date. If you add a new script, add it to `index.html` (in order), and to the `SHELL` list in `sw.js` (the single-file build picks scripts up from `index.html` by itself).
+When you change any shipped file, bump `CACHE` in `sw.js` (for example `ha-v7`; it is `ha-v6` now) so installed copies pick the change up on their next launch. Then run `node build-single.js` to refresh `index-single.html`; `single.test.js` fails if it is out of date. If you add a new script, add it to `index.html` (in order), and to the `SHELL` list in `sw.js` (the single-file build picks scripts up from `index.html` by itself).
 
 ## Licences
 
