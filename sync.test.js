@@ -56,6 +56,25 @@ test('reading a Google event: wall-clock time, minutes, cancelled events by id, 
   assert.strictEqual(SC.fromResource({ id: 'abcde12345', summary: 'Dentist', start: { dateTime: '2026-11-03T09:00:00Z' } }), null);
   assert.deepStrictEqual(SC.fromResource({ id: 'ha01d7', status: 'confirmed', start: { date: '2026-11-08' } }).allDay, true);
 });
+test('a week of sessions in time order with moves applied, and the whole week as one all-day event', () => {
+  const S = mkState(), list = SC.weekList(S, 1, true, TODAY);
+  assert.deepStrictEqual(list.map((e) => e.uid), ['ha-w01d1-am', 'ha-w01d1-pm', 'ha-w01d2', 'ha-w01d3', 'ha-w01d4', 'ha-w01d5-am', 'ha-w01d5-pm', 'ha-w01d6', 'ha-w01d7']);
+  assert.ok(list.every((e, i) => !i || (list[i - 1].date + (list[i - 1].allDay ? '00:00' : list[i - 1].start)) <= (e.date + (e.allDay ? '00:00' : e.start))), 'sorted by date and time');
+  assert.ok(/Power Clean/.test(list[1].desc), 'with the workout text for the link');
+  assert.ok(!SC.weekList(S, 1, false, TODAY).some((e) => /Power Clean/.test(e.desc || '')), 'and without it when only the times are needed');
+  S.settings.includeRest = false; assert.strictEqual(SC.weekList(S, 1, false, TODAY).length, 8, 'rest days follow the setting'); S.settings.includeRest = true;
+  SC.setMove(S, base(S, 'ha-w01d1-pm'), '2026-11-04', '06:15', 60, T0);
+  const moved = SC.weekList(S, 1, false, TODAY);
+  assert.deepStrictEqual(moved.map((e) => e.uid).slice(0, 4), ['ha-w01d1-am', 'ha-w01d2', 'ha-w01d1-pm', 'ha-w01d3'], 'the moved lifting session now sits on Wednesday morning, before that evening\'s BJJ');
+  assert.ok(moved.find((e) => e.uid === 'ha-w01d1-pm').date === '2026-11-04' && moved.find((e) => e.uid === 'ha-w01d1-pm').moved, 'a moved session carries its new date');
+  assert.strictEqual(SC.weekList(S, 1, false, TODAY).filter((e) => e.date === '2026-11-04')[0].uid, 'ha-w01d1-pm', 'and sorts by it (06:15 comes before the 19:00 BJJ)');
+  const ov = SC.weekOverview(S, 2, TODAY);
+  assert.deepStrictEqual([ov.allDay, ov.days, ov.date], [true, 7, '2026-11-09']);
+  assert.ok(/^Hybrid Athlete \u2013 Week 2 \(Block 1\)$/.test(ov.title), ov.title);
+  const lines = ov.desc.split('\n'); assert.strictEqual(lines.length, 9);
+  assert.ok(/^Mon 9 Nov, 07:00-07:45: W2 D1 \u2013 AM Zone 2 Run$/.test(lines[0]) && /^Sun 15 Nov, all day: W2 D7 \u2013 Rest$/.test(lines[8]), lines[0] + ' | ' + lines[8]);
+  const u = new URL(E.googleLink(ov, { tz: 'Europe/Riga' })); assert.strictEqual(u.searchParams.get('dates'), '20261109/20261116');
+});
 test('who wins: the decision table', () => {
   const L = (o) => Object.assign({ date: '2026-11-02', start: '17:30', mins: 90, key: 'k', at: 0, allDay: false }, o);
   const M = (o) => Object.assign({ date: '2026-11-02', start: '17:30', mins: 90, key: 'k' }, o);

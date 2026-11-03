@@ -89,7 +89,7 @@ To use it on your phone, put the files on any static host. GitHub Pages, Netlify
 
 **Zone 2 heart rate.** Shown on every AM run day. With a resting heart rate it uses Karvonen (heart-rate reserve), otherwise a percentage of max heart rate. Defaults to 60–70%, max heart rate = 220 − age (or Tanaka, or your own measured number). All adjustable in Settings.
 
-**Calendar.** Settings, then *Download calendar file (.ics)*. The file has 144 events with the right local dates and times: AM Zone 2 run and PM lift on Days 1 and 5, BJJ Gi, BJJ No-Gi, Recovery, Sprints, and all-day Rest entries (optional). Each timed event has a reminder 30 minutes before. To get it into Google Calendar: on a computer open Google Calendar, then Settings, *Import & export*, choose the file and pick the calendar. Every event has a stable ID and each export carries a higher revision number, so Google recognises a re-import as newer copies of the same events rather than adding a second set. If you ever do see duplicates (for instance after moving the start date by several weeks), delete the earlier events and import again.
+**Calendar.** The quickest way is the **Add to Google Calendar** buttons (no sign-in, no file): on the Today screen each timed session has its own button, and *Whole week* (also in Settings, *Calendar*) opens a sheet with one button per session of that week, week arrows, and a single all-day event for the whole week. Each button is a plain link in Google's own format (`https://calendar.google.com/calendar/render?action=TEMPLATE&text=…&dates=…&details=…&ctz=…`) built from your current plan: the session title, the exact start and end time (moved sessions included), the workout with your weights in the description, and this device's time zone. It opens Google Calendar in the browser or app with the event filled in; you press Save. Google takes one event per link, which is why a week is a list of buttons (and one optional all-day overview event) rather than a single link, and a link cannot set a reminder (the .ics file does). To get all 16 weeks in one go, use Settings, then *Download calendar file (.ics)*. The file has 144 events with the right local dates and times: AM Zone 2 run and PM lift on Days 1 and 5, BJJ Gi, BJJ No-Gi, Recovery, Sprints, and all-day Rest entries (optional). Each timed event has a reminder 30 minutes before. To get it into Google Calendar: on a computer open Google Calendar, then Settings, *Import & export*, choose the file and pick the calendar. Every event has a stable ID and each export carries a higher revision number, so Google recognises a re-import as newer copies of the same events rather than adding a second set. If you ever do see duplicates (for instance after moving the start date by several weeks), delete the earlier events and import again.
 
 **Ducky.** Paste a Gemini API key in Settings (get one at Google AI Studio). It is saved only in this browser's storage, sent only to Google, and never included in backups or exports. Ducky speaks only when you ask: open the tab, tap *Modify today's workout* or *How do I perform…*, or type a question. Ducky knows your whole program and today's resolved workout (with your weights) and answers briefly.
 
@@ -116,7 +116,7 @@ To use it on your phone, put the files on any static host. GitHub Pages, Netlify
 
 ## Google Calendar
 
-**Safe edition:** *Settings, Calendar, Download calendar file (.ics)* exports all 16 weeks (times you moved included; importing it again updates the same events instead of duplicating them). On the Today screen each timed session also has an *Add to Google Calendar* link that opens Google Calendar's own "new event" page with the title, time and workout filled in; nothing is signed in or stored. The rest of this section is the **full edition** only.
+**Safe edition:** *Settings, Calendar, Download calendar file (.ics)* exports all 16 weeks (times you moved included; importing it again updates the same events instead of duplicating them). On the Today screen each timed session also has an *Add to Google Calendar* button, and *Whole week* opens a sheet with one per session; each opens Google Calendar's own "new event" page with the title, time, time zone and workout filled in. Nothing is signed in or stored. The rest of this section is the **full edition** only.
 
 ### Two-way sync (full edition)
 
@@ -224,7 +224,7 @@ The end-to-end suite fakes Bluetooth (a heart-rate strap), Google sign-in and th
 
 ## Updating
 
-When you change any shipped file, bump `CACHE` in `sw.js` (for example `ha-v5`; it is `ha-v4` now) so installed copies pick the change up on their next launch. Then run `node build-single.js` to refresh `index-single.html`; `single.test.js` fails if it is out of date. If you add a new script, add it to `index.html` (in order), and to the `SHELL` list in `sw.js` (the single-file build picks scripts up from `index.html` by itself).
+When you change any shipped file, bump `CACHE` in `sw.js` (for example `ha-v6`; it is `ha-v5` now) so installed copies pick the change up on their next launch. Then run `node build-single.js` to refresh `index-single.html`; `single.test.js` fails if it is out of date. If you add a new script, add it to `index.html` (in order), and to the `SHELL` list in `sw.js` (the single-file build picks scripts up from `index.html` by itself).
 
 ## Licences
 

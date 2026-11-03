@@ -457,6 +457,39 @@ test('each .ics export carries a rising revision number so a re-import supersede
 test('google calendar one-tap link', () => {
   const link = E.googleLink({ title: 'W1 D1 – AM Zone 2 Run', date: '2026-11-02', start: '07:00', mins: 45, desc: 'Easy, steady' });
   assert.ok(link.startsWith('https://calendar.google.com/calendar/render?action=TEMPLATE&text=') && link.includes('dates=20261102T070000/20261102T074500') && link.includes('Easy%2C%20steady'));
+  assert.ok(!link.includes('ctz='), 'no time zone unless one is given');
+});
+test('google calendar link: the official parameters, the time zone, all-day and multi-day events', () => {
+  const ev = { title: 'W1 D1 – PM Lower & Upper', date: '2026-11-02', start: '17:30', mins: 90, desc: 'Line one\nLine two: 3 x 10 @ 71.4%' };
+  const u = new URL(E.googleLink(ev, { tz: 'Europe/Riga' }));
+  assert.strictEqual(u.origin + u.pathname, 'https://calendar.google.com/calendar/render');
+  assert.deepStrictEqual([...u.searchParams.keys()], ['action', 'text', 'dates', 'details', 'ctz']);
+  assert.strictEqual(u.searchParams.get('action'), 'TEMPLATE');
+  assert.strictEqual(u.searchParams.get('text'), ev.title, 'the & in the title survives');
+  assert.strictEqual(u.searchParams.get('dates'), '20261102T173000/20261102T190000', 'local wall-clock start/end, no Z');
+  assert.strictEqual(u.searchParams.get('details'), ev.desc, 'new lines and % survive');
+  const odd = E.googleLink({ title: "Hip Mobility & 'No-Hurdle' (15!) *", date: '2026-11-02', start: '07:00', mins: 45, desc: "it's" });
+  assert.ok(/^[A-Za-z0-9\-_.~%=&:\/?]+$/.test(odd), 'only safe characters in the address: ' + odd);
+  assert.strictEqual(new URL(odd).searchParams.get('text'), "Hip Mobility & 'No-Hurdle' (15!) *", 'and they decode back exactly');
+  assert.strictEqual(u.searchParams.get('ctz'), 'Europe/Riga');
+  assert.strictEqual(new URL(E.googleLink(ev, { tz: 'x"><script>' })).searchParams.get('ctz'), 'xscript', 'a time zone name is cleaned, not trusted');
+  assert.strictEqual(new URL(E.googleLink(Object.assign({ tz: 'America/New_York' }, ev))).searchParams.get('ctz'), 'America/New_York', 'or it can sit on the event');
+  assert.strictEqual(new URL(E.googleLink({ title: 'x', date: '2026-11-02', start: '23:30', mins: 60 })).searchParams.get('dates'), '20261102T233000/20261103T003000', 'past midnight rolls the end to the next day');
+  const day = new URL(E.googleLink({ title: 'Rest', date: '2026-11-08', allDay: true })).searchParams.get('dates');
+  assert.strictEqual(day, '20261108/20261109', 'all-day: the end date is the day after');
+  assert.strictEqual(new URL(E.googleLink({ title: 'Week', date: '2026-11-09', allDay: true, days: 7 })).searchParams.get('dates'), '20261109/20261116', 'a whole week: Monday to the next Monday');
+});
+test('google calendar link never throws, and a long description is cut at a line end (not in the middle of an emoji)', () => {
+  const half = '\uD83D';                                                      // half of an emoji
+  assert.doesNotThrow(() => E.googleLink({ title: 'a' + half, date: '2026-11-02', start: '07:00', mins: 45, desc: 'b' + half + 'c' }));
+  const lines = []; for (let i = 0; i < 80; i++) lines.push('Exercise number ' + i + ': 3 x 10 reps');
+  const cut = E.clip(lines.join('\n'), 700);
+  assert.ok(cut.length <= 702 && cut.endsWith('\n\u2026') && /reps\n…$/.test(cut), 'cut at the end of a line: ' + cut.slice(-40));
+  assert.strictEqual(E.clip('x'.repeat(50), 700), 'x'.repeat(50));
+  const emoji = '\uD83E\uDD86'.repeat(400);                                   // 400 ducks: a cut at 701 would split one
+  assert.doesNotThrow(() => encodeURIComponent(E.clip(emoji, 701)));
+  const long = E.googleLink({ title: 'T', date: '2026-11-02', start: '07:00', mins: 45, desc: lines.join('\n') });
+  assert.ok(long.length < 2500, 'even a huge description gives an address any browser accepts: ' + long.length);
 });
 
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

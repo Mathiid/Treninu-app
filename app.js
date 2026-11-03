@@ -6,7 +6,7 @@
   var Z = HA.zone2, SC = HA.sched, HR = HA.hr;
 
   var tab = 'today', view = { week: 1, day: 1 }, ui = { pending: false, error: null, draft: '' };
-  var curSheet = null, workoutOpen = false, liveOpen = false, liveSig = '', runDraft = {}, wkScroll = 0, lastTick = null, goTimer = null, toastTimer = null, REST_KEY = 'ha.rest';
+  var curSheet = null, calOpened = {}, workoutOpen = false, liveOpen = false, liveSig = '', runDraft = {}, wkScroll = 0, lastTick = null, goTimer = null, toastTimer = null, REST_KEY = 'ha.rest';
 
   function $(id) { return document.getElementById(id); }
   function S() { return store.get(); }
@@ -19,7 +19,7 @@
   function pwaView() {
     return { sw: pwa.sw, err: pwa.err, canPrompt: !!pwa.deferred, ios: isIOS(), standalone: pwa.installed || isStandalone(), swSource: !!$('ha-sw-source') };
   }
-  function ctx() { return { S: S(), today: today(), view: view, tab: tab, ui: ui, hasKey: !!store.getKey(), persistent: store.isPersistent(), pwa: pwaView(), gcal: gcalView(), origin: location.origin }; }
+  function ctx() { return { S: S(), today: today(), view: view, tab: tab, ui: ui, hasKey: !!store.getKey(), persistent: store.isPersistent(), pwa: pwaView(), gcal: gcalView(), origin: location.origin, tz: tzName(), calOpened: calOpened }; }
   function loc(el) { return { it: +el.dataset.it, ex: +(el.dataset.ex || 0), set: +el.dataset.set }; }
   function save() { store.saveSoon(); }
   // Clocks are repainted every second: only touch the DOM when the text changed.
@@ -549,6 +549,13 @@
       case 'duck-how-go': var nm = $('how-sel').value; closeSheet(); sendDucky('How do I perform ' + nm + '?'); break;
 
       /* moving a session */
+      /* Add to Google Calendar: the links are plain anchors; these only open the week sheet and remember which ones were tapped */
+      case 'cal-week': openSheet(function () { return V.weekSheet(ctx(), +el.dataset.w); }); break;
+      case 'cal-week-nav': (function (w) { openSheet(function () { return V.weekSheet(ctx(), w); }); })(Math.max(1, Math.min(16, +el.dataset.w || 1))); break;
+      case 'cal-open':                                    // no preventDefault: the tap still follows the link. The row is marked in place, so the link is not replaced mid-tap.
+        if (el.dataset.k) calOpened[el.dataset.k] = 1;
+        el.classList.add('done'); el.innerHTML = V.ICON.check + (el.classList.contains('btn-block') ? 'Opened. Open again' : 'Opened');
+        break;
       case 'move-open': openSheet(function () { return V.moveSheet(ctx(), el.dataset.uid); }); break;
       case 'move-save':
         var mu = el.dataset.uid;

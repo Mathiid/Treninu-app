@@ -349,13 +349,32 @@
     L.push('END:VCALENDAR');
     return L.map(fold).join('\r\n') + '\r\n';
   }
-  // One-tap "add to Google Calendar" link for a single event (floating local time).
-  function googleLink(e) {
+  /* ------------------------------ "Add to Google Calendar" links (Google's own link format, no sign-in, no API)
+     https://calendar.google.com/calendar/render?action=TEMPLATE & text (title) & dates (start/end) & details (notes) & ctz (time zone).
+     One link makes ONE event. The times are the local wall-clock times of the program (no "Z"); ctz says which time zone that is,
+     so the event lands at the same clock time whatever zone the Google account itself is set to.
+     An all-day event may span several days (e.days); Google reads the end date as the day after the last one. */
+  function dropLoneSurrogates(s) {
+    return String(s).replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, '').replace(/(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '$1');
+  }
+  // encodeURIComponent throws on half an emoji; a link must never be the thing that breaks a screen.
+  // The marks encodeURIComponent leaves alone (' ( ) ! *) are encoded too, so the address is only letters, digits, - _ . ~ and %XX.
+  function enc(s) { return encodeURIComponent(dropLoneSurrogates(s)).replace(/[!'()*]/g, function (c) { return '%' + c.charCodeAt(0).toString(16).toUpperCase(); }); }
+  // Cuts a long text for the address, preferably at the end of a line, and never in the middle of an emoji.
+  function clip(s, max) {
+    s = String(s == null ? '' : s);
+    if (s.length <= max) return s;
+    var cut = s.slice(0, max), i = cut.lastIndexOf('\n');
+    if (i > max * 0.6) cut = cut.slice(0, i);
+    return dropLoneSurrogates(cut).replace(/\s+$/, '') + '\n\u2026';
+  }
+  function googleLink(e, o) {
+    var tz = String((o && o.tz) || e.tz || '').replace(/[^A-Za-z0-9_\/+\-]/g, '');
     var dates = e.allDay
-      ? e.date.replace(/-/g, '') + '/' + addDaysISO(e.date, 1).replace(/-/g, '')
+      ? e.date.replace(/-/g, '') + '/' + addDaysISO(e.date, e.days || 1).replace(/-/g, '')
       : localStamp(e.date, e.start, 0) + '/' + localStamp(e.date, e.start, e.mins);
-    return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(e.title) +
-           '&dates=' + dates + '&details=' + encodeURIComponent(e.desc || '');
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + enc(e.title) +
+           '&dates=' + dates + '&details=' + enc(clip(e.desc, 1000)) + (tz ? '&ctz=' + encodeURIComponent(tz) : '');
   }
 
   HA.engine = {
@@ -372,6 +391,6 @@
     prevSets: prevSets, suggestFromLast: suggestFromLast, prevText: prevText,
     sanitizeMods: sanitizeMods,
     icsEscape: icsEscape, fold: fold, localStamp: localStamp, dayEvents: dayEvents, calendarEvents: calendarEvents,
-    icsFromEvents: icsFromEvents, googleLink: googleLink
+    icsFromEvents: icsFromEvents, googleLink: googleLink, clip: clip
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -226,19 +226,48 @@ test('sheets for moving a session and logging a run; the live screen in every st
   assert.ok(/data-act="live-stop"/.test(V.liveBody(c, states[5])) && /data-act="live-start"/.test(V.liveBody(c, states[4])) && /data-act="live-connect"/.test(V.liveBody(c, states[0])));
   assert.ok(V.gaugePos(60, z) < V.gaugePos(z.lo, z) && V.gaugePos(z.lo, z) < V.gaugePos(z.hi, z) && V.gaugePos(250, z) === 100 && V.gaugePos(0, z) === 0);
 });
-test('safe edition: no sync block, the .ics button leads, every session has a one-tap Add to Google Calendar link', () => {
+test('safe edition: no sync block, Add to Google Calendar leads, every session has a one-tap Google Calendar button', () => {
   const S = mkState({ age: 30, rhr: 55 }), off = { off: true, configured: false, on: false, tokenOk: false, pending: 0, busy: false, msg: '', err: '' };
   const st = V.settings(ctx(S, { tab: 'settings', gcal: off })); check(st, 'safe settings'); collect(st);
   assert.ok(!/gcalClientId|gcal-connect|Two-way sync|console\.cloud\.google\.com/.test(st), 'no sign-in or sync controls');
-  assert.ok(/<h2>Calendar<\/h2>/.test(st) && /btn btn-primary btn-block" data-act="cal-download"/.test(st) && /Add to Google Calendar link/.test(st));
+  assert.ok(/<h2>Calendar<\/h2>/.test(st) && /btn btn-primary btn-block" data-act="cal-week" data-w="1"/.test(st) && /btn btn-ghost btn-block" data-act="cal-download"/.test(st), 'the Google Calendar button leads, the file is the alternative');
+  assert.ok(/Add a week to Google Calendar/.test(st) && /<h3 class="sub">Add to Google Calendar<\/h3>/.test(st));
   const day = V.today(ctx(S, { view: { week: 1, day: 1 }, gcal: off })); check(day, 'safe today'); collect(day);
-  const links = [...day.matchAll(/<a class="link" href="([^"]+)" target="_blank" rel="noopener noreferrer">Add ([^<]+) to Google Calendar<\/a>/g)].map((m) => [m[1].replace(/&amp;/g, '&'), m[2]]);
+  const links = [...day.matchAll(/<a class="btn btn-ghost" href="([^"]+)" target="_blank" rel="noopener noreferrer" aria-label="Add ([^"]+) to Google Calendar">/g)].map((m) => [m[1].replace(/&amp;/g, '&'), m[2]]);
   assert.deepStrictEqual(links.map((l) => l[1]), ['morning run', 'lifting']);
+  assert.ok(/<button class="btn btn-ghost" data-act="cal-week" data-w="1" aria-label="Add the whole week to Google Calendar">/.test(day), 'and a whole-week button');
   assert.ok(links[0][0].startsWith('https://calendar.google.com/calendar/render?action=TEMPLATE&text=') && links[0][0].includes('dates=20261102T070000/20261102T074500'), links[0][0]);
   assert.ok(links[1][0].includes('dates=20261102T173000/20261102T190000') && links.every((l) => l[0].length < 2000), 'short enough for any browser: ' + links.map((l) => l[0].length));
   HA.actions.moveSession(S, 'ha-w01d1-pm', '2026-11-03', '19:15', 60);
   assert.ok(V.today(ctx(S, { view: { week: 1, day: 1 }, gcal: off })).replace(/&amp;/g, '&').includes('dates=20261103T191500/20261103T201500'), 'a moved session links to its new time');
-  const none = V.today(ctx(S, { view: { week: 1, day: 7 }, gcal: off })); check(none, 'rest day'); assert.ok(!/to Google Calendar/.test(none), 'rest days have no timed session to add');
+  const none = V.today(ctx(S, { view: { week: 1, day: 7 }, gcal: off })); check(none, 'rest day');
+  assert.ok(!/<a class="btn btn-ghost" href="https:\/\/calendar/.test(none) && /data-act="cal-week" data-w="1"/.test(none), 'a rest day has no timed session to add, but the week is still one tap away');
+  const tz = V.today(ctx(S, { view: { week: 1, day: 1 }, gcal: off, tz: 'Europe/Riga' })).replace(/&amp;/g, '&');
+  assert.ok(tz.includes('&ctz=Europe%2FRiga'), 'the links carry the time zone of this device');
+  const synced = V.today(ctx(S, { view: { week: 1, day: 1 }, gcal: Object.assign({}, off, { off: false, on: true, tokenOk: true }) })); assert.ok(!/cal-links/.test(synced), 'with two-way sync on, the app does not offer a second way in (it would duplicate)');
+});
+test('the week sheet: one Google Calendar link per session, the whole week as one event, week arrows, tapped rows remembered', () => {
+  const S = mkState({ age: 30, rhr: 55 }); S.baselines = { bench: { kg: 100, at: '2026-11-01' } };
+  const h = V.weekSheet(ctx(S, { tz: 'Europe/Riga' }), 1); check(h, 'week sheet'); collect(h);
+  const hrefs = [...h.matchAll(/<a class="btn btn-ghost btn-(?:sm|block)[^"]*" href="([^"]+)" target="_blank" rel="noopener noreferrer" data-act="cal-open" data-k="([^"]+)"/g)].map((m) => ({ u: new URL(m[1].replace(/&amp;/g, '&')), k: m[2] }));
+  assert.strictEqual(hrefs.length, 10, 'nine sessions (incl. the rest day) plus the one-event week');
+  assert.ok(hrefs.every((x) => x.u.origin + x.u.pathname === 'https://calendar.google.com/calendar/render' && x.u.searchParams.get('action') === 'TEMPLATE' && x.u.searchParams.get('ctz') === 'Europe/Riga' && x.u.href.length < 2500), 'every link is the official template link');
+  assert.strictEqual(new Set(hrefs.map((x) => x.k)).size, 10, 'each row has its own key');
+  const lift = hrefs.find((x) => /PM/.test(x.u.searchParams.get('text')) && /W1 D1/.test(x.u.searchParams.get('text')));
+  assert.strictEqual(lift.u.searchParams.get('dates'), '20261102T173000/20261102T190000');
+  assert.ok(/Bench Press: 3 x 10 reps at 71\.4% of 1RM \(71\.[0-9] kg\)|Bench Press[^\n]*71\.4%/.test(lift.u.searchParams.get('details')), 'the workout, with this person\'s weights, is in the notes: ' + lift.u.searchParams.get('details').split('\n')[5]);
+  const rest = hrefs.find((x) => x.u.searchParams.get('text') === 'W1 D7 \u2013 Rest'); assert.strictEqual(rest.u.searchParams.get('dates'), '20261108/20261109', 'rest days are all-day');
+  const whole = hrefs[hrefs.length - 1]; assert.strictEqual(whole.u.searchParams.get('dates'), '20261102/20261109'); assert.ok(/Week 1/.test(whole.u.searchParams.get('text')) && /W1 D5 \u2013 PM/.test(whole.u.searchParams.get('details')));
+  assert.ok(/data-act="cal-week-nav" data-w="0" disabled/.test(h) && /data-act="cal-week-nav" data-w="2"/.test(h) && !/data-w="2" disabled/.test(h), 'week 1 has no previous week');
+  assert.ok(/data-act="cal-week-nav" data-w="17" disabled/.test(V.weekSheet(ctx(S), 16)) && /data-act="cal-week-nav" data-w="15"(?! disabled)/.test(V.weekSheet(ctx(S), 16)), 'week 16 has no next week, but has a previous one');
+  assert.ok(/<b>Week 3 of 16<\/b><small>Mon 16 Nov to Sun 22 Nov<\/small>/.test(V.weekSheet(ctx(S), 3)), 'the week and its dates are named');
+  assert.ok(/Week 16 of 16/.test(V.weekSheet(ctx(S), 99)) && /Week 1 of 16/.test(V.weekSheet(ctx(S), 'x')), 'a bad week number is clamped, never an error');
+  const seen = V.weekSheet(ctx(S, { calOpened: { [hrefs[0].k]: 1 } }), 1);
+  assert.strictEqual((seen.match(/btn-sm done"/g) || []).length, 1); assert.ok(/Opened<\/a>/.test(seen), 'a row you already tapped says so');
+  HA.actions.moveSession(S, 'ha-w01d1-pm', '2026-11-04', '06:15', 60);
+  const after = V.weekSheet(ctx(S, { tz: 'Europe/Riga', calOpened: { [hrefs[0].k]: 1 } }), 1).replace(/&amp;/g, '&');
+  assert.ok(after.includes('dates=20261104T061500/20261104T071500'), 'a moved session links to its new time');
+  assert.ok(/data-act="cal-download"/.test(h), 'the .ics file is still offered for all 16 weeks');
 });
 test('live screen: type a heart rate by hand when there is no sensor or no Bluetooth', () => {
   const S = mkState({ age: 30, rhr: 55 }), c = ctx(S, { gcal: gstat() }), z = HA.engine.zone2(S.settings);

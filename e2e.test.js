@@ -888,17 +888,64 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
 
   await test('one-tap Add to Google Calendar links for every timed session, following moved times; the .ics download still works', async () => {
     const a = await openApp(browser, url, { ctx: await newCtx(browser) }); allErrors.push(a.errors); const { page, tap, tab } = a;
-    const links = () => page.locator('.cal-links a').evaluateAll((as) => as.map((x) => ({ t: x.textContent, h: x.href, target: x.target, rel: x.rel })));
+    const links = () => page.locator('.cal-links a').evaluateAll((as) => as.map((x) => ({ t: x.getAttribute('aria-label'), h: x.href, target: x.target, rel: x.rel })));
     let l = await links(); assert.deepStrictEqual(l.map((x) => x.t), ['Add morning run to Google Calendar', 'Add lifting to Google Calendar']);
     assert.ok(l[0].h.startsWith('https://calendar.google.com/calendar/render?action=TEMPLATE&text=') && l[0].h.includes('dates=20261102T070000%2F20261102T074500') || l[0].h.includes('dates=20261102T070000/20261102T074500'), l[0].h);
     assert.deepStrictEqual([l[0].target, l[0].rel], ['_blank', 'noopener noreferrer']);
     await tap('[data-act=move-open][data-uid=ha-w01d1-pm]'); await page.fill('#mv-time', '19:15'); await tap('[data-act=move-save]');
     l = await links(); assert.ok(/dates=20261102T191500(%2F|\/)20261102T204500/.test(l[1].h), l[1].h);
     await a.tap('[data-act=pick-day][data-d="7"]'); assert.strictEqual(await page.locator('.cal-links a').count(), 0, 'a rest day has nothing timed to add');
+    assert.strictEqual(await page.locator('.cal-links [data-act=cal-week]').count(), 1, 'but the week is still one tap away');
     await tab('settings');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('[data-act=cal-download]').tap()]);
     assert.ok(/\.ics$/.test(dl.suggestedFilename())); assert.strictEqual((fs.readFileSync(await dl.path(), 'utf8').match(/BEGIN:VEVENT/g) || []).length, 144);
-    if (SINGLE) { assert.strictEqual(await page.locator('[data-set=gcalClientId]').count(), 0, 'no sign-in field in the safe edition'); assert.ok(/btn-primary/.test(await page.locator('[data-act=cal-download]').getAttribute('class'))); }
+    if (SINGLE) { assert.strictEqual(await page.locator('[data-set=gcalClientId]').count(), 0, 'no sign-in field in the safe edition'); assert.ok(/btn-primary/.test(await page.locator('[data-act=cal-week]').first().getAttribute('class')), 'Add to Google Calendar leads in the safe edition'); }
+    await a.ctx.close();
+  });
+
+  await test('Add to Google Calendar: a button per session and a week sheet; each tap opens Google Calendar\'s own link, filled in from the program', async () => {
+    const ctx = await newCtx(browser), asked = [];
+    await ctx.route('https://calendar.google.com/**', (route) => { asked.push(route.request().url()); route.fulfill({ status: 200, contentType: 'text/html', body: '<title>Google Calendar</title>' }); });
+    const a = await openApp(browser, url, { ctx }); allErrors.push(a.errors); const { page, tap, tab } = a;
+    const openLink = async (loc) => {                                         // tap a link, take the tab it opens, read its address
+      const [pop] = await Promise.all([ctx.waitForEvent('page'), loc.tap()]);
+      await pop.waitForLoadState(); const u = new URL(pop.url()); await pop.close(); return u;
+    };
+    assert.deepStrictEqual(await page.locator('.cal-links .btn').evaluateAll((e) => e.map((x) => x.textContent.trim())), ['Morning run', 'Lifting', 'Whole week']);
+    // one session: the program's title, exact start/end, the workout in the notes, and this device's time zone
+    let u = await openLink(page.locator('.cal-links a').nth(1));
+    assert.strictEqual(u.origin + u.pathname + '?action=' + u.searchParams.get('action'), 'https://calendar.google.com/calendar/render?action=TEMPLATE');
+    assert.strictEqual(u.searchParams.get('text'), 'W1 D1 \u2013 PM Power & Base Leg Day + Upper');
+    assert.strictEqual(u.searchParams.get('dates'), '20261102T173000/20261102T190000'); assert.strictEqual(u.searchParams.get('ctz'), 'Europe/Riga');
+    assert.ok(/Bulgarian Split Squat: 3 x 10 reps\/leg/.test(u.searchParams.get('details')) && /\n/.test(u.searchParams.get('details')), u.searchParams.get('details').slice(0, 120));
+    // the whole week: a sheet with one button per session
+    await tap('.cal-links [data-act=cal-week]'); await page.waitForSelector('.cal-week');
+    assert.strictEqual(await page.locator('.cal-week li').count(), 9);
+    assert.ok(/Week 1 of 16/.test(await text(page, '.cal-nav')) && await page.locator('[data-act=cal-week-nav][data-w="0"]').isDisabled(), 'week 1 has no previous week');
+    u = await openLink(page.locator('.cal-week li').nth(2).locator('a'));                         // Tuesday: BJJ Gi
+    assert.deepStrictEqual([u.searchParams.get('text'), u.searchParams.get('dates')], ['W1 D2 \u2013 BJJ Gi', '20261103T190000/20261103T210000']);
+    assert.ok(/Opened/.test(await text(page, '.cal-week li:nth-child(3) a')) && await page.locator('.cal-week li:nth-child(3) a.done').count() === 1, 'the tapped row says Opened, in place');
+    assert.strictEqual(await page.locator('.cal-week li:nth-child(4) a.done').count(), 0, 'the others are untouched');
+    u = await openLink(page.locator('.cal-week li').last().locator('a'));                         // Sunday: rest, all day
+    assert.deepStrictEqual([u.searchParams.get('text'), u.searchParams.get('dates')], ['W1 D7 \u2013 Rest', '20261108/20261109']);
+    // other weeks, and the mark survives paging away and back
+    await tap('[data-act=cal-week-nav][data-w="2"]'); assert.ok(/Week 2 of 16/.test(await text(page, '.cal-nav')) && /Mon 9 Nov to Sun 15 Nov/.test(await text(page, '.cal-nav')));
+    assert.strictEqual(await page.locator('.cal-week a.done').count(), 0, 'week 2 has nothing opened yet');
+    u = await openLink(page.locator('.cal-week li').first().locator('a')); assert.strictEqual(u.searchParams.get('dates'), '20261109T070000/20261109T074500');
+    await tap('[data-act=cal-week-nav][data-w="1"]'); assert.strictEqual(await page.locator('.cal-week a.done').count(), 2, 'the two week-1 rows you tapped are still marked');
+    // the whole week as one all-day event, Monday to Sunday, with every session listed in the notes
+    u = await openLink(page.locator('.sheet-body > a.btn-block'));
+    assert.deepStrictEqual([u.searchParams.get('text'), u.searchParams.get('dates')], ['Hybrid Athlete \u2013 Week 1 (Block 1)', '20261102/20261109']);
+    assert.ok(/^Mon 2 Nov, 07:00-07:45: W1 D1 \u2013 AM Zone 2 Run\n/.test(u.searchParams.get('details')) && u.searchParams.get('details').split('\n').length === 9);
+    assert.ok(/Opened/.test(await text(page, '.sheet-body > a.btn-block')));
+    // a moved session: its new time is in the next link
+    await tap('[data-act=sheet-close]'); await tap('[data-act=move-open][data-uid=ha-w01d1-pm]'); await page.fill('#mv-time', '19:15'); await tap('[data-act=move-save]');
+    await tap('.cal-links [data-act=cal-week]'); u = await openLink(page.locator('.cal-week li').nth(1).locator('a'));
+    assert.ok(/W1 D1 \u2013 PM/.test(u.searchParams.get('text')) && u.searchParams.get('dates') === '20261102T191500/20261102T204500', u.href.slice(0, 200));
+    // Settings opens the same sheet, at the week being looked at
+    await tap('[data-act=sheet-close]'); await tab('settings'); await tap('#sec-gcal [data-act=cal-week]');
+    assert.ok(/Week 1 of 16/.test(await text(page, '.cal-nav')) && await page.locator('.cal-week li').count() === 9);
+    assert.ok(asked.length >= 6 && asked.every((x) => x.startsWith('https://calendar.google.com/calendar/render?action=TEMPLATE&text=')), 'only the links you tapped went to Google: ' + asked.length);
     await a.ctx.close();
   });
 
@@ -909,6 +956,7 @@ async function setupAthlete(a) {                       // 1RMs and heart-rate de
     await setHeart(a); await tab('settings'); await tab('lifts'); await tab('ducky'); await tab('program'); await tab('today');
     await tap('.run-tools [data-act=live-open]'); await tap('[data-act=live-close]');
     await tab('settings'); await page.locator('[data-act=cal-download]').tap(); await a.adv(300);
+    await tab('today'); await tap('.cal-links [data-act=cal-week]'); await tap('[data-act=cal-week-nav][data-w="2"]'); await tap('[data-act=sheet-close]');   // looking at the links is not following them
     assert.deepStrictEqual(hits, [], 'requests to other sites: ' + hits.join(', '));
     await ctx.close();
   });

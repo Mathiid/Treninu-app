@@ -135,6 +135,28 @@
     if (!p) return null;
     return E.dayEvents(evOpts(S, withDesc, today), p.week, p.day).filter(function (e) { return e.uid === uid; })[0] || null;
   }
+  var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function dayName(iso) { var d = E.parseISO(iso); return DOW[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()]; }
+  // Every session of program week w (moves and notes applied), in time order. withDesc adds the workout text, as the links need it.
+  function weekList(S, w, withDesc, today) {
+    var o = evOpts(S, withDesc, today), out = [], d;
+    for (d = 1; d <= 7; d++) E.dayEvents(o, w, d).forEach(function (e) { out.push(effective(e, S)); });
+    var key = function (e) { return e.date + 'T' + (e.allDay ? '00:00' : e.start); };
+    return out.map(function (e, i) { return { e: e, i: i }; }).sort(function (a, b) {
+      var x = key(a.e), y = key(b.e); return x < y ? -1 : x > y ? 1 : a.i - b.i;
+    }).map(function (r) { return r.e; });
+  }
+  // The whole week as ONE all-day event (Monday to Sunday) whose notes list every session and its time: the single-link version of the week.
+  function weekOverview(S, w, today) {
+    var list = weekList(S, w, false, today);
+    if (!list.length) return null;
+    var wk = HA.program.getWorkout(w, 1);
+    var lines = list.map(function (e) {
+      return dayName(e.date) + (e.allDay ? ', all day' : ', ' + e.start + '-' + endTime(e)) + ': ' + e.title + (e.note ? ' (' + e.note + ')' : '');
+    });
+    return { uid: 'ha-w' + (w < 10 ? '0' : '') + w + '-week', title: 'Hybrid Athlete \u2013 Week ' + w + ' (Block ' + wk.block + ')', allDay: true, days: 7,
+             date: E.dateFor(S.settings.startDate, w, 1), desc: lines.join('\n') };
+  }
   function dayList(S, w, d) { return E.dayEvents(evOpts(S, false), w, d).map(function (e) { return effective(e, S); }); }
   function endTime(ev) { var s = E.localStamp(ev.date, ev.start, ev.mins); return s.slice(9, 11) + ':' + s.slice(11, 13); }
   function oneEvent(S, uid, withDesc, today) { var b = baseEvent(S, uid, withDesc, today); return b ? effective(b, S) : null; }
@@ -145,7 +167,7 @@
   }
 
   HA.sched = {
-    allEvents: allEvents, dayList: dayList, endTime: endTime, oneEvent: oneEvent, baseEvent: baseEvent, applyRemote: applyRemote,
+    allEvents: allEvents, dayList: dayList, weekList: weekList, weekOverview: weekOverview, dayName: dayName, endTime: endTime, oneEvent: oneEvent, baseEvent: baseEvent, applyRemote: applyRemote,
     idFor: idFor, uidFor: uidFor, parseUid: parseUid, mainUid: mainUid,
     effective: effective, applyAll: applyAll, valid: valid, setMove: setMove, clearMove: clearMove, setNote: setNote,
     coreKey: coreKey, toResource: toResource, fromResource: fromResource, same: same, reconcile: reconcile

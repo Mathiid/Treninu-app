@@ -27,6 +27,7 @@
     left: svg('<path d="M15 6l-6 6 6 6"/>'),
     right: svg('<path d="M9 6l6 6-6 6"/>'),
     play: svg('<path d="M7 5l12 7-12 7z"/>'),
+    cal: svg('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>'),
     send: svg('<path d="M5 12l15-7-5 15-3-6z"/>'),
     duck: svg('<circle cx="10" cy="8" r="4"/><path d="M13.6 9.2L20 10.5l-6 1.6M6 12.5c-2.5 1.2-3.5 4.7.5 7h9.5c4-1.3 4.6-5.3 1-7"/><circle cx="9" cy="7.2" r=".6" fill="currentColor"/>', 'ico ico-duck')
   };
@@ -186,8 +187,9 @@
   }
   function sessionList(c, wk, iso) {
     var list = SC.dayList(c.S, wk.week, wk.day).filter(function (e) { return !e.allDay; });
-    if (!list.length) return '';
-    var g = c.gcal, h = '<ul class="sched" aria-label="Session times">';
+    var g = c.gcal;
+    if (!list.length) return g && g.on ? '' : calLinks(c, list, wk.week);
+    var h = '<ul class="sched" aria-label="Session times">';
     list.forEach(function (e) {
       h += '<li><span class="sc-time">' + e.start + '–' + SC.endTime(e) + '</span><span class="sc-name">' + esc(e.label) +
            (e.date !== iso ? '<small>Moved to ' + longDate(e.date) + '</small>' : '') + '</span>' +
@@ -195,17 +197,47 @@
     });
     h += '</ul>';
     if (g && g.on) h += '<p class="sched-sync">' + gcalLine(g) + '</p>';
-    else h += calLinks(c, list);
+    else h += calLinks(c, list, wk.week);
     return h;
   }
-  // One-tap "add to Google Calendar" links: a plain web address, no sign-in, nothing that can fail inside the app.
-  function calLinks(c, list) {
-    return '<div class="cal-links">' + list.map(function (e) {
-      var f = SC.oneEvent(c.S, e.uid, true, c.today) || e, d = f.desc ? String(f.desc) : '';
-      if (d.length > 700) d = d.slice(0, 700) + '…';                  // keeps the address short enough for every browser
-      var link = E.googleLink({ title: f.title, date: f.date, start: f.start, mins: f.mins, desc: d + (f.note ? '\n' + f.note : '') });
-      return '<a class="link" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">Add ' + esc(String(e.label).toLowerCase()) + ' to Google Calendar</a>';
-    }).join('') + '</div>';
+  /* "Add to Google Calendar": a plain web address in Google's own link format (calendar.google.com/calendar/render?action=TEMPLATE).
+     No sign-in, no API, nothing that can fail inside the app. The address is rebuilt on every screen from the current plan, so a moved
+     session, a changed 1RM or a Ducky change is in the next link you tap. One link makes one event. */
+  function calHref(c, e, full) {                                       // full: the event already carries its workout text
+    var f = full ? e : (SC.oneEvent(c.S, e.uid, true, c.today) || e);
+    var d = E.clip(f.desc ? String(f.desc) : '', 700);                 // keeps the address short enough for every browser
+    return E.googleLink({ title: f.title, date: f.date, start: f.start, mins: f.mins, allDay: f.allDay, desc: d + (f.note ? '\n' + f.note : '') }, { tz: c.tz });
+  }
+  function calLinks(c, list, week) {
+    return '<div class="cal-links"><p class="cal-cap">Add to Google Calendar</p><div class="btn-row">' + list.map(function (e) {
+      return '<a class="btn btn-ghost" href="' + esc(calHref(c, e)) + '" target="_blank" rel="noopener noreferrer" aria-label="Add ' + esc(String(e.label).toLowerCase()) + ' to Google Calendar">' +
+             ICON.cal + esc(e.label) + '</a>';
+    }).join('') + '<button class="btn btn-ghost" data-act="cal-week" data-w="' + week + '" aria-label="Add the whole week to Google Calendar">' + ICON.cal + 'Whole week</button></div></div>';
+  }
+  function calKey(e) { return [e.uid, e.date, e.allDay ? 'all' : e.start, e.allDay ? 0 : e.mins].join('|'); }
+  function weekSheet(c, w) {
+    w = Math.max(1, Math.min(16, Math.round(+w) || 1));
+    var list = SC.weekList(c.S, w, true, c.today), ov = SC.weekOverview(c.S, w, c.today), seen = c.calOpened || {};
+    var first = E.dateFor(c.S.settings.startDate, w, 1), last = E.dateFor(c.S.settings.startDate, w, 7);
+    var h = '<div class="cal-nav"><button class="icon-btn" data-act="cal-week-nav" data-w="' + (w - 1) + '"' + (w <= 1 ? ' disabled' : '') + ' aria-label="Previous week">' + ICON.left + '</button>' +
+            '<p><b>Week ' + w + ' of 16</b><small>' + longDate(first) + ' to ' + longDate(last) + '</small></p>' +
+            '<button class="icon-btn" data-act="cal-week-nav" data-w="' + (w + 1) + '"' + (w >= 16 ? ' disabled' : '') + ' aria-label="Next week">' + ICON.right + '</button></div>';
+    h += '<p class="muted">Google Calendar takes one event per link, so each session has its own button. Tap one, check the details in Google Calendar, press Save, and come back for the next. Times follow what you set in the app, moved sessions included.</p>';
+    h += '<ul class="cal-week">' + list.map(function (e) {
+      var k = calKey(e), done = !!seen[k];
+      return '<li><span class="cw-when"><b>' + longDate(e.date) + '</b><small>' + (e.allDay ? 'All day' : e.start + '–' + SC.endTime(e)) + '</small></span>' +
+             '<span class="cw-name">' + esc(e.title) + '</span>' +
+             '<a class="btn btn-ghost btn-sm' + (done ? ' done' : '') + '" href="' + esc(calHref(c, e, true)) + '" target="_blank" rel="noopener noreferrer" data-act="cal-open" data-k="' + esc(k) + '" aria-label="Add ' + esc(e.title) + ' to Google Calendar">' +
+             (done ? ICON.check + 'Opened' : ICON.cal + 'Add') + '</a></li>';
+    }).join('') + '</ul>';
+    if (ov) {
+      var k2 = calKey(ov), done2 = !!seen[k2];
+      h += '<h3 class="sub">Or one event for the week</h3><p class="muted">A single all-day event from ' + longDate(first) + ' to ' + longDate(last) + ', with every session and its time in the notes.</p>' +
+           '<a class="btn btn-ghost btn-block' + (done2 ? ' done' : '') + '" href="' + esc(E.googleLink(ov, { tz: c.tz })) + '" target="_blank" rel="noopener noreferrer" data-act="cal-open" data-k="' + esc(k2) + '">' +
+           (done2 ? ICON.check + 'Opened. Open again' : ICON.cal + 'Add week ' + w + ' as one event') + '</a>';
+    }
+    h += '<p class="muted cal-file">Want all 16 weeks at once? <button class="link" data-act="cal-download">Download the calendar file (.ics)</button> and import it.</p>';
+    return sheet('Add to Google Calendar', h);
   }
   function dayBody(c, wk, iso) {
     var h = '<section class="day"><div class="day-head"><h2 class="day-title">' + esc(wk.shortTitle) + '</h2><p class="day-date">' + longDate(iso) + ', day ' + wk.day + '</p></div>';
@@ -590,8 +622,10 @@
       '<div class="two">' + field('Recovery day', inp('times.recovery', t.recovery, 'time')) + field('Length (min)', num('times.recDur', t.recDur, '60')) + '</div>' +
       '<div class="two">' + field('Sprint day', inp('times.sprint', t.sprint, 'time')) + field('Length (min)', num('times.sprDur', t.sprDur, '75')) + '</div>' +
       tog('includeRest', st.includeRest, 'Add rest days', 'All-day entries on day 7.') +
-      '<h3 class="sub">' + (noSync ? 'Export to your calendar' : 'Or use a file') + '</h3><p class="muted">Exports all 16 weeks, dated from your start date. Importing the file again updates the same events instead of duplicating them. Times you moved are included.' + (noSync ? ' For a single session, use its Add to Google Calendar link on the Today screen.' : '') + '</p>' +
-      '<button class="btn ' + (noSync ? 'btn-primary' : 'btn-ghost') + ' btn-block" data-act="cal-download">Download calendar file (.ics)</button>' +
+      '<h3 class="sub">Add to Google Calendar</h3><p class="muted">No sign-in. Google Calendar opens with the title, time and workout already filled in, and you press Save. For one session, use its button on the Today screen. For a week, use this.</p>' +
+      '<button class="btn ' + (noSync ? 'btn-primary' : 'btn-ghost') + ' btn-block" data-act="cal-week" data-w="' + ((c.view && c.view.week) || 1) + '">' + ICON.cal + 'Add a week to Google Calendar</button>' +
+      '<h3 class="sub">Or use a file</h3><p class="muted">Exports all 16 weeks at once, dated from your start date. Importing the file again updates the same events instead of duplicating them. Times you moved are included.</p>' +
+      '<button class="btn btn-ghost btn-block" data-act="cal-download">Download calendar file (.ics)</button>' +
       '<a class="btn btn-ghost btn-block" href="https://calendar.google.com/calendar/u/0/r/settings/export" target="_blank" rel="noopener noreferrer">Open Google Calendar import page</a>' +
       '<ol class="steps"><li>Download the file.</li><li>On a computer, open Google Calendar, then Settings, then Import &amp; export.</li><li>Choose the file and pick the calendar to add it to.</li></ol></section>';
     h += '<section class="set-sec" id="sec-key"><h2>Ducky (Gemini)</h2><p class="muted">Your key stays in this browser’s storage and goes only to Google when you ask Ducky something. Get one in Google AI Studio.</p>' +
@@ -766,7 +800,7 @@
     ICON: ICON, esc: esc, fmtClock: fmtClock, clockHTML: clockHTML, longDate: longDate,
     today: today, program: program, lifts: lifts, ducky: ducky, settings: settings, nav: nav, resumePill: resumePill,
     rmLine: rmLine, sheet: sheet, daySheet: daySheet, oneRMSheet: oneRMSheet, confirmSheet: confirmSheet, finishSheet: finishSheet, summarySheet: summarySheet,
-    modifySheet: modifySheet, howSheet: howSheet, workout: workout, workoutBody: workoutBody,
+    modifySheet: modifySheet, howSheet: howSheet, weekSheet: weekSheet, workout: workout, workoutBody: workoutBody,
     moveSheet: moveSheet, runSheet: runSheet, liveRun: liveRun, liveBody: liveBody, liveActions: liveActions, liveState: liveState, gaugePos: gaugePos, paceResult: paceResult, gcalStatus: gcalStatus
   };
 })(typeof window !== 'undefined' ? window : globalThis);
